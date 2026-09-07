@@ -8,12 +8,16 @@ import {
   listPropertiesQuery,
   createPropertyBody,
   updatePropertyBody,
+  availabilityQuery,
 } from '../validators/property.validator';
 
 const router = Router();
 
 // Public search and filtering
 router.get('/', validate({ query: listPropertiesQuery }), ctrl.list);
+
+// Live availability (never cached)
+router.get('/:id/availability', validate({ params: idParam, query: availabilityQuery }), ctrl.getAvailability);
 
 // Public detail — optional auth lets an owner/admin view their own inactive listing
 router.get('/:id', optionalAuthenticate, validate({ params: idParam }), ctrl.getOne);

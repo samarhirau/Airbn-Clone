@@ -17,11 +17,7 @@ const locationInput = z.object({
   country: z.string().trim().max(120).optional(),
 });
 
-/**
- * Body for `POST /api/properties`. `pricePerNight` must be strictly positive: a
- * $0/night listing is not a real product and would make booking totals degenerate
- * (the model only enforces `>= 0`, so we tighten it at the API boundary).
- */
+
 export const createPropertyBody = z.object({
   title: z.string().trim().min(1).max(160),
   description: z.string().trim().min(1).max(5000),
@@ -36,11 +32,7 @@ export const createPropertyBody = z.object({
 });
 export type CreatePropertyInput = z.infer<typeof createPropertyBody>;
 
-/**
- * Body for `PATCH /api/properties/:id`. Every field is optional (partial update) but
- * at least one must be present. `isActive` lets an owner deactivate a listing instead
- * of deleting it. `owner` is not updatable.
- */
+
 export const updatePropertyBody = z
   .object({
     title: z.string().trim().min(1).max(160).optional(),
@@ -63,12 +55,7 @@ export type UpdatePropertyInput = z.infer<typeof updatePropertyBody>;
 /** Whitelisted public sort tokens (map to Mongo sort in the service). */
 export const propertySortTokens = ['newest', 'price_asc', 'price_desc', 'rating'] as const;
 
-/**
- * Query for `GET /api/properties` (public search). Composes shared pagination and adds
- * text search (`q`), city, type, price range, guest capacity and amenity filters plus a
- * whitelisted sort token. `amenities` accepts repeated params (`?amenities=wifi&amenities=pool`)
- * and/or comma-separated values; every value is trimmed and blanks dropped.
- */
+
 export const listPropertiesQuery = paginationQuery
   .extend({
     q: z.string().trim().min(1).max(160).optional(),
@@ -91,3 +78,18 @@ export const listPropertiesQuery = paginationQuery
     path: ['minPrice'],
   });
 export type ListPropertiesInput = z.infer<typeof listPropertiesQuery>;
+
+
+export const availabilityQuery = z
+  .object({
+    checkIn: z.coerce.date().optional(),
+    checkOut: z.coerce.date().optional(),
+  })
+  .refine((data) => (data.checkIn === undefined) === (data.checkOut === undefined), {
+    message: 'Provide both checkIn and checkOut, or neither.',
+  })
+  .refine((data) => !(data.checkIn && data.checkOut) || data.checkIn < data.checkOut, {
+    message: 'checkOut must be after checkIn.',
+    path: ['checkOut'],
+  });
+export type AvailabilityQueryInput = z.infer<typeof availabilityQuery>;

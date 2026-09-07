@@ -3,17 +3,21 @@ import { connectDatabase, disconnectDatabase } from './config/db.js';
 import type { Server } from 'node:http';
 import { logger } from './config/logger';
 import { initRedis, disconnectRedis } from './config/redis';
+import { startJobs, stopJobs } from './jobs';
 
 async function bootstrap(): Promise<void> {
   // Fail fast if database is unreachable (source of truth)
   await connectDatabase();
   // Initialize Redis with graceful degradation
   initRedis();
+  // Start background jobs
+  await startJobs();
   const app = createApp();
   const server: Server = app.listen(process.env.PORT, () => {
     logger.info(`StayHub API listening on port ${process.env.PORT} (${process.env.NODE_ENV})`);
   });
   const shutdown = async (signal: string): Promise<void> => {
+    stopJobs();
     logger.info({ signal }, 'Shutting down gracefully');
     server.close(async () => {
       await disconnectDatabase().catch((err) => logger.error({ err }, 'DB disconnect error'));

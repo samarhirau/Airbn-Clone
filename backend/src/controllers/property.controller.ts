@@ -6,6 +6,7 @@ import type {
   CreatePropertyInput,
   UpdatePropertyInput,
   ListPropertiesInput,
+  AvailabilityQueryInput,
 } from '../validators/property.validator';
 
 /** GET /api/properties — public, paginated, filtered search. */
@@ -31,6 +32,14 @@ export const getOne = asyncHandler(async (req: Request, res: Response) => {
   const viewer = req.user ? { id: req.user.id, role: req.user.role } : undefined;
   const property = await propertyService.getPropertyById(String(req.params.id), viewer);
   return sendSuccess(res, { property });
+});
+
+/** GET /api/properties/:id/availability — live occupancy (never cached). */
+export const getAvailability = asyncHandler(async (req: Request, res: Response) => {
+  const q = req.query as unknown as AvailabilityQueryInput;
+  const range = q.checkIn && q.checkOut ? { checkIn: q.checkIn, checkOut: q.checkOut } : undefined;
+  const availability = await propertyService.getAvailabilityFor(String(req.params.id), range);
+  return sendSuccess(res, availability);
 });
 
 /** POST /api/properties — owner/admin only; owner is the authenticated user. */

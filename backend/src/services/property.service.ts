@@ -9,6 +9,8 @@ import { cacheAside, cacheGetNumber } from '../cache/cache';
 import { cacheKeys, hashQuery, TTL } from '../cache/keys';
 import { invalidateProperty } from '../cache/invalidation';
 import type { CreatePropertyInput, UpdatePropertyInput } from '../validators/property.validator';
+import { toUtcMidnight } from '../utils/dates';
+import { getPropertyAvailability, type OccupancyInfo } from './availability.service';
 
 export interface PublicProperty {
   id: string;
@@ -254,4 +256,26 @@ export async function deleteProperty(id: string, actor: Actor): Promise<void> {
 
   await Property.deleteOne({ _id: id });
   await invalidateProperty(id, String(existing.owner));
+}
+
+
+
+//  Live availability for a property (GET /:id/availability). Never cached.
+ 
+export async function getAvailabilityFor(
+  id: string,
+  range?: { checkIn: Date; checkOut: Date },
+): Promise<OccupancyInfo & { requestedRangeAvailable?: boolean }> {
+  const exists = await Property.exists({ _id: id, isActive: true });
+  if (!exists) throw AppError.notFound('Property not found.');
+  let normalizedRange: { checkIn: Date; checkOut: Date } | undefined;
+  if (range) {
+    const checkIn = toUtcMidnight(range.checkIn);
+    const checkOut = toUtcMidnight(range.checkOut);
+    if (!checkIn || !checkOut || checkOut.getTime() <= checkIn.getTime()) {
+      throw AppError.badRequest('checkOut must be after checkIn.', ErrorCodes.VALIDATION_ERROR);
+    }
+    normalizedRange = { checkIn, checkOut };
+  }
+  return getPropertyAvailability(id, normalizedRange);
 }
