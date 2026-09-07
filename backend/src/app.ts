@@ -12,6 +12,7 @@ import { notFound } from './middleware/notFound';
 import healthRoute from './routes/health.route';
 import authRoute from './routes/auth.route';
 import propertyRoute from './routes/property.route';
+import bookingRoute from './routes/booking.route';
 
 export function createApp(): Express {
   const app: Express = express();
@@ -44,7 +45,9 @@ export function createApp(): Express {
   // Health Check 
   app.use('/api/health', healthRoute);  
   app.use('/api/auth', authRoute);
-    app.use('/api/properties', propertyRoute);
+  app.use('/api/properties', propertyRoute);
+  app.use('/api/bookings', bookingRoute);
+
 
   // 404 and centralized error handling (must be last)
   app.use(notFound);

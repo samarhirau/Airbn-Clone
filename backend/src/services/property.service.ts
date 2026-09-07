@@ -1,16 +1,15 @@
 import { Types } from 'mongoose';
 import { Property } from '../models/Property';
+import { Booking } from '../models/Booking';
 import type { PropertyType } from '../models/Property';
 import type { UserRole } from '../models/User';
-import { AppError } from '../utils/errors';
+import { AppError, ErrorCodes } from '../utils/errors';
 import { getSkip, resolveSort } from '../utils/pagination';
 import { cacheAside, cacheGetNumber } from '../cache/cache';
 import { cacheKeys, hashQuery, TTL } from '../cache/keys';
 import { invalidateProperty } from '../cache/invalidation';
 import type { CreatePropertyInput, UpdatePropertyInput } from '../validators/property.validator';
 
-
-/** Public projection of a property (internal fields like `bookingSeq` are never exposed). */
 export interface PublicProperty {
   id: string;
   owner: string;
@@ -31,7 +30,6 @@ export interface PublicProperty {
   updatedAt: Date;
 }
 
-/** Shape returned by the `.lean()` reads below. */
 interface PropertyLean {
   _id: Types.ObjectId;
   owner: Types.ObjectId;
@@ -75,7 +73,6 @@ export interface Actor {
   role: UserRole;
 }
 
-/** Whitelisted sort tokens → Mongo sort. Using a fixed map prevents sort-field injection. */
 const SORT_MAP: Record<string, Record<string, 1 | -1>> = {
   newest: { createdAt: -1 },
   price_asc: { pricePerNight: 1 },
@@ -83,7 +80,6 @@ const SORT_MAP: Record<string, Record<string, 1 | -1>> = {
   rating: { ratingAvg: -1, ratingCount: -1 },
 };
 
-/** Fields a PATCH may set (owner and all denormalized/system fields are intentionally excluded). */
 const UPDATABLE_FIELDS = [
   'title',
   'description',
@@ -98,7 +94,6 @@ const UPDATABLE_FIELDS = [
   'isActive',
 ] as const;
 
-/** Escape a user string for safe use inside a Mongo `$regex` (prevents ReDoS / injection). */
 function escapeRegex(input: string): string {
   return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -125,7 +120,6 @@ function toPublicProperty(d: PropertyLean): PublicProperty {
   };
 }
 
-/** Build the Mongo filter for the public listing. Only active properties are ever listed. */
 function buildListQuery(f: PropertyListFilters): Record<string, unknown> {
   const query: Record<string, unknown> = { isActive: true };
   if (f.q) query.$text = { $search: f.q };
@@ -142,11 +136,6 @@ function buildListQuery(f: PropertyListFilters): Record<string, unknown> {
   return query;
 }
 
-/**
- * Public, paginated, filtered listing (active properties only). Cached per
- * (list-version, normalized-query-hash); any property mutation bumps the list version,
- * instantly orphaning every cached page without key scanning.
- */
 export async function listProperties(filters: PropertyListFilters): Promise<PropertyListResult> {
   const version = await cacheGetNumber(cacheKeys.propertyListVersion());
   const hash = hashQuery({
@@ -178,10 +167,6 @@ export async function listProperties(filters: PropertyListFilters): Promise<Prop
   });
 }
 
-/**
- * Detail for one property. Cached by id. Inactive listings are hidden from the public
- * (404) but remain visible to an admin or to the owning owner, so they can manage them.
- */
 export async function getPropertyById(id: string, viewer?: Actor): Promise<PublicProperty> {
   const property = await cacheAside<PublicProperty | null>(
     cacheKeys.propertyDetail(id),
@@ -200,7 +185,6 @@ export async function getPropertyById(id: string, viewer?: Actor): Promise<Publi
   return property;
 }
 
-/** Create a listing owned by `ownerId` (the authenticated owner/admin — never from the body). */
 export async function createProperty(ownerId: string, input: CreatePropertyInput): Promise<PublicProperty> {
   const created = await Property.create({
     owner: new Types.ObjectId(ownerId),
@@ -219,10 +203,6 @@ export async function createProperty(ownerId: string, input: CreatePropertyInput
   return toPublicProperty(created.toObject() as unknown as PropertyLean);
 }
 
-/**
- * Update a listing. Ownership is enforced from the DB (`owner === actor.id`) unless the
- * actor is an admin; only whitelisted fields are applied (`owner` can never change).
- */
 export async function updateProperty(
   id: string,
   actor: Actor,
@@ -251,9 +231,6 @@ export async function updateProperty(
   return toPublicProperty(updated);
 }
 
-/**
- * Delete a listing. Ownership enforced as above.
- */
 export async function deleteProperty(id: string, actor: Actor): Promise<void> {
   const existing = await Property.findById(id)
     .select('owner')
@@ -261,6 +238,18 @@ export async function deleteProperty(id: string, actor: Actor): Promise<void> {
   if (!existing) throw AppError.notFound('Property not found.');
   if (actor.role !== 'admin' && String(existing.owner) !== actor.id) {
     throw AppError.forbidden('You can only delete your own properties.');
+  }
+
+  // Active bookings block hard-deletion (preserves customer history)
+  const blockingBooking = await Booking.exists({
+    property: id,
+    status: { $in: ['pending', 'confirmed', 'completed'] },
+  });
+  if (blockingBooking) {
+    throw AppError.conflict(
+      'This property has bookings and cannot be deleted. Deactivate it instead (set isActive:false).',
+      ErrorCodes.CONFLICT,
+    );
   }
 
   await Property.deleteOne({ _id: id });

@@ -7,3 +7,10 @@ export {
   type PropertyType,
   type PropertyAttrs,
 } from './Property';
+export {
+  Booking,
+  BookingStatuses,
+  ACTIVE_BOOKING_STATUSES,
+  type BookingStatus,
+  type BookingAttrs,
+} from './Booking';
