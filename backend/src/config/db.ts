@@ -17,7 +17,7 @@ mongoose.connection.on('disconnected', () => {
   console.warn('MongoDB disconnected');
 });
 
-export async function connectDatabase(uri: string = process.env.MONGODB_URI): Promise<typeof mongoose> {
+export async function connectDatabase(uri: string = process.env.MONGODB_URI ?? 'mongodb://localhost:27017/airbn'): Promise<typeof mongoose> {
   if (isConnected && mongoose.connection.readyState === 1) {
     return mongoose;
   }

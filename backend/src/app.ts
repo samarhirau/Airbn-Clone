@@ -1,14 +1,21 @@
-import express, { type Express, type Request, type Response } from 'express';
+import express, { type Express } from 'express';
 import cors from 'cors';
 import pinoHttp from 'pino-http';
 import { logger } from './config/logger';
 import healthRoute from './routes/health.route';
+import cookieParser from 'cookie-parser';
+import { requestId } from './middleware/requestId';
+import { errorHandler } from './middleware/errorHandler';
+import { notFound } from './middleware/notFound';
+import authRoute from './routes/auth.route';
 
 export function createApp(): Express {
   const app: Express = express();
 
   app.set('trust proxy', 1);
   app.disable('x-powered-by');
+
+  app.use(requestId);
   // Structured HTTP request logging with shared logger
   app.use(
     pinoHttp({
@@ -23,19 +30,21 @@ export function createApp(): Express {
       credentials: true,
     })
   );
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+
+
+   app.use(express.json({ limit: '1mb' }));
+  app.use(express.urlencoded({ extended: false, limit: '1mb' }));
+  app.use(cookieParser());
+
 
   // Health Check 
-  app.get('/api/health', healthRoute);  
+  app.use('/api/health', healthRoute);  
+  app.use('/api/auth', authRoute);
 
-  // 404 Handler for undefined routes
-  app.use((_req: Request, res: Response) => {
-    res.status(404).json({
-      success: false,
-      message: 'Route not found',
-    });
-  });
+
+  // 404 and centralized error handling (must be last)
+  app.use(notFound);
+  app.use(errorHandler);
 
   return app;
 }
