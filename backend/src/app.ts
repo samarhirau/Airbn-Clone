@@ -15,6 +15,8 @@ import propertyRoute from './routes/property.route';
 import bookingRoute from './routes/booking.route';
 import reviewRoute from './routes/review.route';
 import wishlistRoute from './routes/wishlist.route';
+import ownerRoute from './routes/owner.route';
+import adminRoute from './routes/admin.route';
 
 export function createApp(): Express {
   const app: Express = express();
@@ -51,6 +53,8 @@ export function createApp(): Express {
   app.use('/api/bookings', bookingRoute);
   app.use('/api/reviews', reviewRoute);
   app.use('/api/wishlist', wishlistRoute);
+  app.use('/api/owner', ownerRoute);
+  app.use('/api/admin', adminRoute);
 
   // 404 and centralized error handling (must be last)
   app.use(notFound);
