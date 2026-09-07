@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
 import { Property } from '../models/Property';
-import { Booking } from '../models/Booking';
+import { Booking, ACTIVE_BOOKING_STATUSES } from '../models/Booking';
 import type { PropertyType } from '../models/Property';
 import type { UserRole } from '../models/User';
 import { AppError, ErrorCodes } from '../utils/errors';
@@ -10,8 +10,12 @@ import { cacheKeys, hashQuery, TTL } from '../cache/keys';
 import { invalidateProperty } from '../cache/invalidation';
 import type { CreatePropertyInput, UpdatePropertyInput } from '../validators/property.validator';
 import { toUtcMidnight } from '../utils/dates';
-import { getPropertyAvailability, type OccupancyInfo } from './availability.service';
-
+import {
+  getPropertyAvailability,
+  getMonthCalendar,
+  type OccupancyInfo,
+  type MonthCalendarResult,
+} from './availability.service';
 export interface PublicProperty {
   id: string;
   owner: string;
@@ -59,6 +63,9 @@ export interface PropertyListFilters {
   minPrice?: number;
   maxPrice?: number;
   guests?: number;
+  bedrooms?: number;
+  checkIn?: Date;
+  checkOut?: Date;
   amenities?: string[];
   sort?: string;
   page: number;
@@ -122,12 +129,13 @@ function toPublicProperty(d: PropertyLean): PublicProperty {
   };
 }
 
-function buildListQuery(f: PropertyListFilters): Record<string, unknown> {
+async function buildListQuery(f: PropertyListFilters): Promise<Record<string, unknown>> {
   const query: Record<string, unknown> = { isActive: true };
   if (f.q) query.$text = { $search: f.q };
   if (f.city) query['location.city'] = { $regex: escapeRegex(f.city), $options: 'i' };
   if (f.propertyType) query.propertyType = f.propertyType;
   if (f.guests !== undefined) query.maxGuests = { $gte: f.guests };
+  if (f.bedrooms !== undefined) query.bedrooms = { $gte: f.bedrooms };
   if (f.minPrice !== undefined || f.maxPrice !== undefined) {
     const price: Record<string, number> = {};
     if (f.minPrice !== undefined) price.$gte = f.minPrice;
@@ -135,6 +143,22 @@ function buildListQuery(f: PropertyListFilters): Record<string, unknown> {
     query.pricePerNight = price;
   }
   if (f.amenities && f.amenities.length > 0) query.amenities = { $all: f.amenities };
+
+  
+  // Availability dates filter: exclude properties that have overlapping active bookings
+  if (f.checkIn && f.checkOut) {
+    const checkIn = toUtcMidnight(f.checkIn)!;
+    const checkOut = toUtcMidnight(f.checkOut)!;
+    const busyIds = await Booking.distinct('property', {
+      status: { $in: ACTIVE_BOOKING_STATUSES },
+      checkIn: { $lt: checkOut },
+      checkOut: { $gt: checkIn },
+    });
+    if (busyIds.length > 0) {
+      query._id = { $nin: busyIds };
+    }
+  }
+
   return query;
 }
 
@@ -147,6 +171,9 @@ export async function listProperties(filters: PropertyListFilters): Promise<Prop
     minPrice: filters.minPrice,
     maxPrice: filters.maxPrice,
     guests: filters.guests,
+    bedrooms: filters.bedrooms,
+    checkIn: filters.checkIn?.toISOString(),
+    checkOut: filters.checkOut?.toISOString(),
     amenities: filters.amenities,
     sort: filters.sort ?? 'newest',
     page: filters.page,
@@ -155,7 +182,7 @@ export async function listProperties(filters: PropertyListFilters): Promise<Prop
   const key = cacheKeys.propertyList(version, hash);
 
   return cacheAside<PropertyListResult>(key, TTL.propertyList, async () => {
-    const query = buildListQuery(filters);
+    const query = await buildListQuery(filters);
     const sort = resolveSort(filters.sort, SORT_MAP, 'newest');
     const [docs, total] = await Promise.all([
       Property.find(query)
@@ -278,4 +305,15 @@ export async function getAvailabilityFor(
     normalizedRange = { checkIn, checkOut };
   }
   return getPropertyAvailability(id, normalizedRange);
+}
+
+
+export async function getCalendarFor(
+  id: string,
+  year: number,
+  month: number,
+): Promise<MonthCalendarResult> {
+  const exists = await Property.exists({ _id: id, isActive: true });
+  if (!exists) throw AppError.notFound('Property not found.');
+  return getMonthCalendar(id, year, month);
 }

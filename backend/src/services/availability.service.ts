@@ -148,3 +148,69 @@ export async function getPropertyAvailability(
   }
   return occupancy;
 }
+
+
+
+export interface CalendarDayStatus {
+  date: string;
+  dayOfMonth: number;
+  dayOfWeek: number;
+  isPast: boolean;
+  status: 'available' | 'occupied' | 'past';
+}
+
+export interface MonthCalendarResult {
+  propertyId: string;
+  year: number;
+  month: number;
+  days: CalendarDayStatus[];
+}
+
+export async function getMonthCalendar(
+  propertyId: Types.ObjectId | string,
+  year: number,
+  month: number,
+): Promise<MonthCalendarResult> {
+  const pid = typeof propertyId === 'string' ? new Types.ObjectId(propertyId) : propertyId;
+  const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
+  const endDate = new Date(Date.UTC(year, month, 1, 0, 0, 0));
+  const today = startOfTodayUtc();
+
+  const bookings = await Booking.find({
+    property: pid,
+    status: { $in: ACTIVE_BOOKING_STATUSES },
+    checkIn: { $lt: endDate },
+    checkOut: { $gt: startDate },
+  }).lean();
+
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const days: CalendarDayStatus[] = [];
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const currentDayUtc = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
+    const nextDayUtc = new Date(Date.UTC(year, month - 1, day + 1, 0, 0, 0));
+    const isPast = currentDayUtc.getTime() < today.getTime();
+
+    const isBooked = bookings.some(
+      (b) => b.checkIn.getTime() < nextDayUtc.getTime() && b.checkOut.getTime() > currentDayUtc.getTime(),
+    );
+
+    let status: 'available' | 'occupied' | 'past' = 'available';
+    if (isPast) status = 'past';
+    else if (isBooked) status = 'occupied';
+
+    const yyyy = currentDayUtc.getUTCFullYear();
+    const mm = String(currentDayUtc.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(currentDayUtc.getUTCDate()).padStart(2, '0');
+
+    days.push({
+      date: `${yyyy}-${mm}-${dd}`,
+      dayOfMonth: day,
+      dayOfWeek: currentDayUtc.getUTCDay(),
+      isPast,
+      status,
+    });
+  }
+
+  return { propertyId: String(pid), year, month, days };
+}

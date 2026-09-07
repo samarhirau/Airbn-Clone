@@ -64,6 +64,9 @@ export const listPropertiesQuery = paginationQuery
     minPrice: z.coerce.number().min(0).max(1_000_000).optional(),
     maxPrice: z.coerce.number().min(0).max(1_000_000).optional(),
     guests: z.coerce.number().int().min(1).max(100).optional(),
+    bedrooms: z.coerce.number().int().min(0).max(100).optional(),
+    checkIn: z.coerce.date().optional(),
+    checkOut: z.coerce.date().optional(),
     amenities: z
       .union([z.string(), z.array(z.string())])
       .transform((v) =>
@@ -76,6 +79,14 @@ export const listPropertiesQuery = paginationQuery
   .refine((data) => !(data.minPrice !== undefined && data.maxPrice !== undefined) || data.minPrice <= data.maxPrice, {
     message: 'minPrice must be less than or equal to maxPrice.',
     path: ['minPrice'],
+    })
+  .refine((data) => (data.checkIn === undefined) === (data.checkOut === undefined), {
+    message: 'Provide both checkIn and checkOut, or neither.',
+    path: ['checkIn'],
+  })
+  .refine((data) => !(data.checkIn && data.checkOut) || data.checkIn < data.checkOut, {
+    message: 'checkOut must be after checkIn.',
+    path: ['checkOut'],
   });
 export type ListPropertiesInput = z.infer<typeof listPropertiesQuery>;
 
@@ -93,3 +104,11 @@ export const availabilityQuery = z
     path: ['checkOut'],
   });
 export type AvailabilityQueryInput = z.infer<typeof availabilityQuery>;
+
+
+// Query for GET /api/properties/:id/calendar
+export const calendarQuery = z.object({
+  year: z.coerce.number().int().min(2020).max(2100).default(() => new Date().getFullYear()),
+  month: z.coerce.number().int().min(1).max(12).default(() => new Date().getMonth() + 1),
+});
+export type CalendarQueryInput = z.infer<typeof calendarQuery>;

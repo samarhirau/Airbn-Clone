@@ -36,6 +36,12 @@ router.patch(
   ctrl.cancel,
 );
 
+router.put(
+  '/:id/cancel',
+  authorize('customer', 'admin'),
+  validate({ params: idParam, body: cancelBookingBody }),
+  ctrl.cancel,
+);
 
 const bookingSchema = {
   type: 'object',

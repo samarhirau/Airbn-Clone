@@ -32,6 +32,9 @@ export const listPropertiesQuery = paginationQuery.extend({
   propertyType: z.enum(PropertyTypes).optional(),
   isActive: booleanQueryParam.optional(),
   ownerId: objectId.optional(),
+  minPrice: z.coerce.number().min(0).max(1_000_000).optional(),
+  maxPrice: z.coerce.number().min(0).max(1_000_000).optional(),
+  availability: z.enum(['available', 'occupied']).optional(),
 });
 export type ListPropertiesQuery = z.infer<typeof listPropertiesQuery>;
 

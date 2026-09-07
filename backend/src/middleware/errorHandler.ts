@@ -69,7 +69,11 @@ function serialize(err: unknown): SerializedError {
       return { statusCode: 400, code: ErrorCodes.VALIDATION_ERROR, message: 'Malformed request body.' };
     }
   }
-  return { statusCode: 500, code: ErrorCodes.INTERNAL, message: 'Something went wrong.' };
+  const fallbackMessage =
+    (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') && err instanceof Error
+      ? err.message
+      : 'Something went wrong.';
+  return { statusCode: 500, code: ErrorCodes.INTERNAL, message: fallbackMessage };
 }
 
 /**

@@ -9,6 +9,7 @@ import { cacheAside } from '../cache/cache';
 import { cacheKeys, TTL } from '../cache/keys';
 import { invalidateProperty, invalidateAdminDashboard } from '../cache/invalidation';
 import { invalidateAuthUser } from '../cache/userCache';
+import { getOccupancyMap, type OccupancyInfo } from './availability.service';
 
 export interface AdminUserMetrics {
   total: number;
@@ -285,15 +286,22 @@ export interface ListPropertiesFilters {
   propertyType?: PropertyType;
   isActive?: boolean;
   ownerId?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  availability?: 'available' | 'occupied';
+}
+
+export interface AdminPropertyItem extends PropertyAttrs {
+  occupancy?: OccupancyInfo;
 }
 
 export async function listAllProperties(
   filters: ListPropertiesFilters,
-): Promise<{ items: unknown[]; total: number }> {
+): Promise<{ items: AdminPropertyItem[]; total: number }> {
   const query: Record<string, unknown> = {};
   if (filters.q) {
     const rx = new RegExp(escapeRegex(filters.q), 'i');
-    query.$or = [{ title: rx }, { 'location.city': rx }];
+    query.$or = [{ title: rx }, { 'location.city': rx }, { 'location.area': rx }];
   }
   if (filters.city) {
     query['location.city'] = new RegExp(`^${escapeRegex(filters.city)}$`, 'i');
@@ -302,16 +310,43 @@ export async function listAllProperties(
   if (filters.isActive !== undefined) query.isActive = filters.isActive;
   if (filters.ownerId) query.owner = new Types.ObjectId(filters.ownerId);
 
-  const [items, total] = await Promise.all([
+   if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
+    const price: Record<string, number> = {};
+    if (filters.minPrice !== undefined) price.$gte = filters.minPrice;
+    if (filters.maxPrice !== undefined) price.$lte = filters.maxPrice;
+    query.pricePerNight = price;
+  }
+
+  if (filters.availability) {
+    const today = startOfTodayUtc();
+    const busyIds = await Booking.distinct('property', {
+      status: { $in: ACTIVE_BOOKING_STATUSES },
+      checkIn: { $lte: today },
+      checkOut: { $gt: today },
+    });
+    if (filters.availability === 'occupied') {
+      query._id = { $in: busyIds };
+    } else {
+      query._id = { $nin: busyIds };
+    }
+  }
+
+  const [docs, total] = await Promise.all([
     Property.find(query)
       .sort({ createdAt: -1 })
       .skip(getSkip(filters.page, filters.limit))
       .limit(filters.limit)
       .populate('owner', 'name email')
-      .lean(),
+      .lean<PropertyAttrs[]>(),
     Property.countDocuments(query),
   ]);
 
+    const occupancy = await getOccupancyMap(docs.map((d) => d._id));
+  const items: AdminPropertyItem[] = docs.map((d) => ({
+    ...d,
+    occupancy: occupancy[String(d._id)],
+  }));
+  
   return { items, total };
 }
 

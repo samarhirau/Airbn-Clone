@@ -7,6 +7,7 @@ import type {
   UpdatePropertyInput,
   ListPropertiesInput,
   AvailabilityQueryInput,
+  CalendarQueryInput,
 } from '../validators/property.validator';
 
 /** GET /api/properties — public, paginated, filtered search. */
@@ -19,6 +20,9 @@ export const list = asyncHandler(async (req: Request, res: Response) => {
     minPrice: q.minPrice,
     maxPrice: q.maxPrice,
     guests: q.guests,
+    bedrooms: q.bedrooms,
+    checkIn: q.checkIn,
+    checkOut: q.checkOut,
     amenities: q.amenities,
     sort: q.sort,
     page: q.page,
@@ -40,6 +44,13 @@ export const getAvailability = asyncHandler(async (req: Request, res: Response) 
   const range = q.checkIn && q.checkOut ? { checkIn: q.checkIn, checkOut: q.checkOut } : undefined;
   const availability = await propertyService.getAvailabilityFor(String(req.params.id), range);
   return sendSuccess(res, availability);
+});
+
+/** GET /api/properties/:id/calendar — month availability calendar. */
+export const getCalendar = asyncHandler(async (req: Request, res: Response) => {
+  const q = req.query as unknown as CalendarQueryInput;
+  const calendar = await propertyService.getCalendarFor(String(req.params.id), q.year, q.month);
+  return sendSuccess(res, calendar);
 });
 
 /** POST /api/properties — owner/admin only; owner is the authenticated user. */
