@@ -6,13 +6,15 @@ export type UserRole = (typeof UserRoles)[number];
 export interface UserAttrs {
   name: string;
   email: string;
-  passwordHash: string;
+  passwordHash?: string;
   role: UserRole;
   phone?: string;
   avatar?: string;
   bio?: string;
   isActive: boolean;
   tokenVersion: number;
+  googleId?: string;
+  isGoogleAuth?: boolean;
 }
 
 const userSchema = new Schema<UserAttrs>(
@@ -27,7 +29,7 @@ const userSchema = new Schema<UserAttrs>(
       index: true,
     },
     // Never selected by default — callers must explicitly `.select('+passwordHash')`.
-    passwordHash: { type: String, required: true, select: false },
+    passwordHash: { type: String, select: false },
     role: { type: String, enum: UserRoles, default: 'customer', required: true, index: true },
     phone: { type: String, trim: true },
     avatar: { type: String, trim: true },
@@ -35,6 +37,8 @@ const userSchema = new Schema<UserAttrs>(
     isActive: { type: Boolean, default: true },
     // Bumped to invalidate all outstanding access tokens (e.g. on password change / force logout).
     tokenVersion: { type: Number, default: 0 },
+    googleId: { type: String, sparse: true, index: true },
+    isGoogleAuth: { type: Boolean, default: false },
   },
   {
     timestamps: true,

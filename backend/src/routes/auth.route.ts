@@ -2,7 +2,7 @@ import { Router } from 'express';
 import * as ctrl from '../controllers/auth.controller';
 import { validate } from '../middleware/validate';
 import { authenticate } from '../middleware/authenticate';
-import { registerBody, loginBody, updateProfileBody } from '../validators/auth.validator';
+import { registerBody, loginBody, updateProfileBody, googleAuthBody } from '../validators/auth.validator';
 import { authLimiter, registerLimiter } from '../middleware/rateLimit';
 import { registerPaths } from '../config/swagger';
 
@@ -14,7 +14,7 @@ router.post('/refresh', ctrl.refresh);
 router.post('/logout', ctrl.logout);
 router.get('/me', authenticate, ctrl.me);
 router.patch('/me', authenticate, validate({ body: updateProfileBody }), ctrl.updateProfile);
-
+router.post('/google', authLimiter, validate({ body: googleAuthBody }), ctrl.googleAuth);
 
 
 const authUserSchema = {
@@ -95,6 +95,49 @@ registerPaths({
       responses: {
         200: { description: 'Authenticated' },
         401: { description: 'Invalid credentials' },
+      },
+    },
+  },
+   '/auth/google': {
+    post: {
+      tags: ['Auth'],
+      summary: 'Authenticate via Google ID token (sign up or login)',
+      description: 'Verifies the Google ID token, upserts the user, sets the refresh cookie, and returns the access token.',
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['idToken'],
+              properties: {
+                idToken: { type: 'string', description: 'Google ID token from Google Identity Services' },
+                role: { type: 'string', enum: ['customer', 'owner'], default: 'customer' },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Authenticated successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                  data: {
+                    type: 'object',
+                    properties: { user: authUserSchema, accessToken: { type: 'string' } },
+                  },
+                },
+              },
+            },
+          },
+        },
+        401: { description: 'Invalid Google token', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+        403: { description: 'Account deactivated', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
       },
     },
   },

@@ -8,11 +8,19 @@ import type {
 	ListPropertiesQuery,
 	UpdatePropertyBody,
 	ListBookingsQuery,
+	AdminAnalyticsQuery,
 } from '../validators/admin.validator';
 
 export const getDashboard = asyncHandler(async (_req: Request, res: Response) => {
 	const dashboard = await adminService.getAdminDashboard();
 	return sendSuccess(res, dashboard);
+});
+
+/** GET /api/admin/analytics — platform-wide historical analytics for chart widgets. */
+export const getAnalytics = asyncHandler(async (req: Request, res: Response) => {
+  const { months } = req.query as unknown as AdminAnalyticsQuery;
+  const analytics = await adminService.getAdminAnalytics(months);
+  return sendSuccess(res, analytics);
 });
 
 export const listUsers = asyncHandler(async (req: Request, res: Response) => {

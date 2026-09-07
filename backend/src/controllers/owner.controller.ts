@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, buildPagination } from '../utils/apiResponse';
-import type { OwnerBookingsQuery, OwnerListQuery } from '../validators/owner.validator';
+import type { OwnerBookingsQuery, OwnerListQuery, OwnerAnalyticsQuery } from '../validators/owner.validator';
 import * as ownerService from '../services/owner.service';
 
 // GET /api/owner/dashboard
@@ -9,6 +9,14 @@ export const getDashboard = asyncHandler(async (req: Request, res: Response) => 
   const ownerId = req.user!.id;
   const metrics = await ownerService.getOwnerDashboard(ownerId);
   return sendSuccess(res, metrics);
+});
+
+/** GET /api/owner/analytics — historical chart aggregation for the acting owner. */
+export const getAnalytics = asyncHandler(async (req: Request, res: Response) => {
+  const ownerId = req.user!.id;
+  const { months } = req.query as unknown as OwnerAnalyticsQuery;
+  const analytics = await ownerService.getOwnerAnalytics(ownerId, months);
+  return sendSuccess(res, analytics);
 });
 
 // GET /api/owner/properties

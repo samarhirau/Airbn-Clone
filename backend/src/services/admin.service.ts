@@ -399,3 +399,248 @@ export async function listAllBookings(
 
   return { items, total };
 }
+
+
+
+export interface MonthlyRevenueMetric {
+  month: string;
+  label: string;
+  revenue: number;
+  bookingsCount: number;
+  completedBookings: number;
+}
+
+export interface MonthlyUserGrowth {
+  month: string;
+  label: string;
+  customers: number;
+  owners: number;
+  total: number;
+}
+
+export interface AdminTopRevenueProperty {
+  propertyId: string;
+  title: string;
+  city: string;
+  ownerName: string;
+  revenue: number;
+  bookingsCount: number;
+}
+
+export interface AdminAnalyticsResult {
+  periodMonths: number;
+  startDate: string;
+  totalPlatformRevenue: number;
+  totalPlatformBookings: number;
+  monthlyRevenue: MonthlyRevenueMetric[];
+  monthlyUserGrowth: MonthlyUserGrowth[];
+  bookingStatusDistribution: {
+    pending: number;
+    confirmed: number;
+    completed: number;
+    cancelled: number;
+  };
+  topRevenueProperties: AdminTopRevenueProperty[];
+}
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function generateMonthSlots(months: number): { slots: { month: string; label: string }[]; startDate: Date } {
+  const slots: { month: string; label: string }[] = [];
+  const now = new Date();
+  const startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - months + 1, 1));
+
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    const year = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const month = `${year}-${m}`;
+    const label = `${MONTH_NAMES[d.getUTCMonth()]} ${year}`;
+    slots.push({ month, label });
+  }
+
+  return { slots, startDate };
+}
+
+interface AdminBookingMonthRow {
+  _id: string;
+  revenue: number;
+  bookingsCount: number;
+  completedBookings: number;
+}
+
+interface AdminStatusRow {
+  _id: BookingStatus;
+  count: number;
+}
+
+interface AdminTopPropRow {
+  _id: Types.ObjectId;
+  revenue: number;
+  bookingsCount: number;
+}
+
+interface AdminBookingFacetResult {
+  monthly: AdminBookingMonthRow[];
+  byStatus: AdminStatusRow[];
+  topProperties: AdminTopPropRow[];
+}
+
+interface UserGrowthRow {
+  _id: string;
+  customers: number;
+  owners: number;
+  total: number;
+}
+
+async function computeAdminAnalytics(months: number = 6): Promise<AdminAnalyticsResult> {
+  const { slots, startDate } = generateMonthSlots(months);
+
+  const [bookingFacets, userRows] = await Promise.all([
+    Booking.aggregate<AdminBookingFacetResult>([
+      { $match: { createdAt: { $gte: startDate } } },
+      {
+        $facet: {
+          monthly: [
+            {
+              $group: {
+                _id: { $dateToString: { format: '%Y-%m', date: '$createdAt' } },
+                revenue: {
+                  $sum: { $cond: [{ $in: ['$status', ['confirmed', 'completed']] }, '$totalPrice', 0] },
+                },
+                bookingsCount: { $sum: 1 },
+                completedBookings: {
+                  $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] },
+                },
+              },
+            },
+            { $sort: { _id: 1 } },
+          ],
+          byStatus: [
+            {
+              $group: {
+                _id: '$status',
+                count: { $sum: 1 },
+              },
+            },
+          ],
+          topProperties: [
+            {
+              $group: {
+                _id: '$property',
+                revenue: {
+                  $sum: { $cond: [{ $in: ['$status', ['confirmed', 'completed']] }, '$totalPrice', 0] },
+                },
+                bookingsCount: { $sum: 1 },
+              },
+            },
+            { $sort: { revenue: -1 } },
+            { $limit: 5 },
+          ],
+        },
+      },
+    ]),
+    User.aggregate<UserGrowthRow>([
+      { $match: { createdAt: { $gte: startDate } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m', date: '$createdAt' } },
+          customers: { $sum: { $cond: [{ $eq: ['$role', 'customer'] }, 1, 0] } },
+          owners: { $sum: { $cond: [{ $eq: ['$role', 'owner'] }, 1, 0] } },
+          total: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]),
+  ]);
+
+  const f = bookingFacets[0] ?? { monthly: [], byStatus: [], topProperties: [] };
+
+  const bookingMonthMap = new Map<string, AdminBookingMonthRow>();
+  for (const r of f.monthly) {
+    bookingMonthMap.set(r._id, r);
+  }
+
+  const userMonthMap = new Map<string, UserGrowthRow>();
+  for (const r of userRows) {
+    userMonthMap.set(r._id, r);
+  }
+
+  let totalPlatformRevenue = 0;
+  let totalPlatformBookings = 0;
+
+  const monthlyRevenue: MonthlyRevenueMetric[] = slots.map((slot) => {
+    const data = bookingMonthMap.get(slot.month);
+    const rev = data?.revenue ?? 0;
+    const count = data?.bookingsCount ?? 0;
+    totalPlatformRevenue += rev;
+    totalPlatformBookings += count;
+    return {
+      month: slot.month,
+      label: slot.label,
+      revenue: rev,
+      bookingsCount: count,
+      completedBookings: data?.completedBookings ?? 0,
+    };
+  });
+
+  const monthlyUserGrowth: MonthlyUserGrowth[] = slots.map((slot) => {
+    const data = userMonthMap.get(slot.month);
+    return {
+      month: slot.month,
+      label: slot.label,
+      customers: data?.customers ?? 0,
+      owners: data?.owners ?? 0,
+      total: data?.total ?? 0,
+    };
+  });
+
+  // Top earning properties with populated owner and location
+  const topPropIds = f.topProperties.map((p) => p._id);
+  const populatedProps = await Property.find({ _id: { $in: topPropIds } })
+    .select('title location.city owner')
+    .populate<{ owner: { name: string } | null }>('owner', 'name')
+    .lean<{ _id: Types.ObjectId; title: string; location?: { city?: string }; owner?: { name?: string } | null }[]>();
+
+  const propMap = new Map(populatedProps.map((p) => [String(p._id), p]));
+
+  const topRevenueProperties: AdminTopRevenueProperty[] = f.topProperties.map((p) => {
+    const info = propMap.get(String(p._id));
+    return {
+      propertyId: String(p._id),
+      title: info?.title || 'Listing',
+      city: info?.location?.city || 'Unknown',
+      ownerName: info?.owner?.name || 'Owner',
+      revenue: p.revenue,
+      bookingsCount: p.bookingsCount,
+    };
+  });
+
+  const bookingStatusDistribution = { pending: 0, confirmed: 0, completed: 0, cancelled: 0 };
+  for (const s of f.byStatus) {
+    if (s._id in bookingStatusDistribution) {
+      bookingStatusDistribution[s._id] = s.count;
+    }
+  }
+
+  return {
+    periodMonths: months,
+    startDate: startDate.toISOString(),
+    totalPlatformRevenue,
+    totalPlatformBookings,
+    monthlyRevenue,
+    monthlyUserGrowth,
+    bookingStatusDistribution,
+    topRevenueProperties,
+  };
+}
+
+/** Admin platform-wide historical analytics with cache-aside acceleration. */
+export async function getAdminAnalytics(months: number = 6): Promise<AdminAnalyticsResult> {
+  return cacheAside<AdminAnalyticsResult>(
+    cacheKeys.adminAnalytics(months),
+    TTL.analytics,
+    () => computeAdminAnalytics(months),
+  );
+}
+

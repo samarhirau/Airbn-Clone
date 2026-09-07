@@ -7,6 +7,7 @@ export const TTL = {
   propertyList: 60,
   propertyReviews: 120,
   dashboard: 30,
+  analytics: 60,
 } as const;
 
 export const cacheKeys = {
@@ -21,6 +22,8 @@ export const cacheKeys = {
   propertyList: (version: number, hash: string) => `props:list:v${version}:${hash}`,
   adminDashboard: () => `admin:dashboard`,
   ownerDashboard: (ownerId: string) => `owner:${ownerId}:dashboard`,
+  ownerAnalytics: (ownerId: string, months: number) => `owner:${ownerId}:analytics:${months}`,
+  adminAnalytics: (months: number) => `admin:analytics:${months}`,
 };
 
 

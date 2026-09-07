@@ -27,6 +27,11 @@ export const updateProfileBody = z
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'At least one field is required' });
 
+  export const googleAuthBody = z.object({
+  idToken: z.string().trim().min(1, 'idToken is required'),
+  role: z.enum(['customer', 'owner']).optional(),
+});
 export type RegisterInput = z.infer<typeof registerBody>;
 export type LoginInput = z.infer<typeof loginBody>;
 export type UpdateProfileInput = z.infer<typeof updateProfileBody>;
+export type GoogleAuthInput = z.infer<typeof googleAuthBody>;

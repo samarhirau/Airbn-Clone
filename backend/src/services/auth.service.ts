@@ -11,7 +11,46 @@ import {
 import { AppError, ErrorCodes } from '../utils/errors';
 import { invalidateAuthUser } from '../cache/userCache';
 import { invalidateAdminDashboard } from '../cache/invalidation';
-import type { RegisterInput, LoginInput, UpdateProfileInput } from '../validators/auth.validator';
+import type { RegisterInput, LoginInput, UpdateProfileInput, GoogleAuthInput } from '../validators/auth.validator';
+
+interface GoogleTokenPayload {
+  googleId: string;
+  email: string;
+  name: string;
+  avatar?: string;
+}
+
+async function verifyGoogleToken(idToken: string): Promise<GoogleTokenPayload> {
+  const response = await fetch(
+    `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`,
+  );
+  if (!response.ok) {
+    throw AppError.unauthorized('Invalid Google sign-in token.', ErrorCodes.INVALID_CREDENTIALS);
+  }
+
+  const token = (await response.json()) as {
+    sub?: string;
+    email?: string;
+    name?: string;
+    picture?: string;
+    aud?: string;
+  };
+  if (
+    !token.sub ||
+    !token.email ||
+    !token.name ||
+    (process.env.GOOGLE_CLIENT_ID && token.aud !== process.env.GOOGLE_CLIENT_ID)
+  ) {
+    throw AppError.unauthorized('Invalid Google sign-in token.', ErrorCodes.INVALID_CREDENTIALS);
+  }
+
+  return {
+    googleId: token.sub,
+    email: token.email,
+    name: token.name,
+    avatar: token.picture,
+  };
+}
 
 //  Authentication service
 
@@ -28,6 +67,7 @@ export interface SafeUser {
   avatar: string | null;
   bio: string | null;
   isActive: boolean;
+  isGoogleAuth?: boolean;
   createdAt?: Date;
 }
 
@@ -53,6 +93,7 @@ function toSafeUser(u: UserDocument): SafeUser {
     avatar: u.avatar ?? null,
     bio: u.bio ?? null,
     isActive: u.isActive ?? true,
+    isGoogleAuth: Boolean(u.isGoogleAuth),
     createdAt: (u as unknown as { createdAt?: Date }).createdAt,
   };
 }
@@ -130,6 +171,12 @@ export async function login(input: LoginInput, ctx: AuthContext): Promise<Sessio
   if (!user) {
     await verifyPassword(input.password, await DUMMY_PASSWORD_HASH);
     throw AppError.unauthorized('Invalid email or password.', ErrorCodes.INVALID_CREDENTIALS);
+  }
+  if (!user.passwordHash) {
+    throw AppError.badRequest(
+      'This account was registered using Google Sign-In. Please sign in with Google.',
+      ErrorCodes.INVALID_CREDENTIALS,
+    );
   }
   const ok = await verifyPassword(input.password, user.passwordHash);
   if (!ok) {
@@ -218,4 +265,51 @@ export async function updateProfile(userId: string, input: UpdateProfileInput): 
   await user.save();
   await invalidateAuthUser(userId);
   return toSafeUser(user);
+}
+
+
+
+/** Google OAuth sign-in / registration via frontend ID token. */
+export async function googleAuth(input: GoogleAuthInput, ctx: AuthContext): Promise<SessionResult> {
+  const payload = await verifyGoogleToken(input.idToken);
+
+  let user = await User.findOne({
+    $or: [{ googleId: payload.googleId }, { email: payload.email }],
+  });
+
+  if (user) {
+    let modified = false;
+    if (!user.googleId) {
+      user.googleId = payload.googleId;
+      modified = true;
+    }
+    if (!user.isGoogleAuth) {
+      user.isGoogleAuth = true;
+      modified = true;
+    }
+    if (!user.avatar && payload.avatar) {
+      user.avatar = payload.avatar;
+      modified = true;
+    }
+    if (modified) {
+      await user.save();
+    }
+  } else {
+    user = await User.create({
+      name: payload.name,
+      email: payload.email,
+      googleId: payload.googleId,
+      isGoogleAuth: true,
+      role: input.role ?? 'customer',
+      avatar: payload.avatar,
+      isActive: true,
+    });
+    await invalidateAdminDashboard();
+  }
+
+  if (!user.isActive) {
+    throw AppError.forbidden('This account has been deactivated.');
+  }
+
+  return startSession(user, ctx);
 }

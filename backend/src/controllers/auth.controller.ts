@@ -67,3 +67,9 @@ export const updateProfile = asyncHandler(async (req, res) => {
   const user = await authService.updateProfile(userId, req.body);
   return sendSuccess(res, { user }, 200);
 });
+
+export const googleAuth = asyncHandler(async (req, res) => {
+  const result = await authService.googleAuth(req.body, contextFrom(req));
+  res.cookie(REFRESH_COOKIE, result.refreshToken, refreshCookieOptions(result.refreshExpiresAt));
+  return sendSuccess(res, { user: result.user, accessToken: result.accessToken }, 200);
+});

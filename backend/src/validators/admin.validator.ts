@@ -60,3 +60,9 @@ export const listBookingsQuery = paginationQuery
     path: ['from'],
   });
 export type ListBookingsQuery = z.infer<typeof listBookingsQuery>;
+
+/** Query for `GET /api/admin/analytics`: months back for historical chart aggregation (1-24, default 6). */
+export const adminAnalyticsQuery = z.object({
+  months: z.coerce.number().int().min(1).max(24).default(6),
+});
+export type AdminAnalyticsQuery = z.infer<typeof adminAnalyticsQuery>;

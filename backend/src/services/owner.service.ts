@@ -203,3 +203,203 @@ export async function listPropertyBookings(
 
   return { items, total };
 }
+
+
+
+
+export interface MonthlyOwnerMetric {
+  month: string;
+  label: string;
+  revenue: number;
+  bookingsCount: number;
+  completedBookings: number;
+  cancelledBookings: number;
+}
+
+export interface PropertyRevenueBreakdown {
+  propertyId: string;
+  title: string;
+  revenue: number;
+  bookingsCount: number;
+}
+
+export interface OwnerAnalyticsResult {
+  periodMonths: number;
+  startDate: string;
+  totalRevenue: number;
+  totalBookings: number;
+  monthly: MonthlyOwnerMetric[];
+  propertyBreakdown: PropertyRevenueBreakdown[];
+  bookingStatusDistribution: {
+    pending: number;
+    confirmed: number;
+    completed: number;
+    cancelled: number;
+  };
+}
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function generateMonthSlots(months: number): { slots: { month: string; label: string }[]; startDate: Date } {
+  const slots: { month: string; label: string }[] = [];
+  const now = new Date();
+  const startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - months + 1, 1));
+
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    const year = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const month = `${year}-${m}`;
+    const label = `${MONTH_NAMES[d.getUTCMonth()]} ${year}`;
+    slots.push({ month, label });
+  }
+
+  return { slots, startDate };
+}
+
+interface MonthFacetRow {
+  _id: string;
+  revenue: number;
+  bookingsCount: number;
+  completedBookings: number;
+  cancelledBookings: number;
+}
+
+interface PropertyFacetRow {
+  _id: Types.ObjectId;
+  revenue: number;
+  bookingsCount: number;
+}
+
+interface StatusFacetRow {
+  _id: BookingStatus;
+  count: number;
+}
+
+interface OwnerAnalyticsFacet {
+  byMonth: MonthFacetRow[];
+  byProperty: PropertyFacetRow[];
+  byStatus: StatusFacetRow[];
+}
+
+async function computeOwnerAnalytics(ownerId: string, months: number = 6): Promise<OwnerAnalyticsResult> {
+  const owner = new Types.ObjectId(ownerId);
+  const { slots, startDate } = generateMonthSlots(months);
+
+  const facetResults = await Booking.aggregate<OwnerAnalyticsFacet>([
+    {
+      $match: {
+        owner,
+        createdAt: { $gte: startDate },
+      },
+    },
+    {
+      $facet: {
+        byMonth: [
+          {
+            $group: {
+              _id: { $dateToString: { format: '%Y-%m', date: '$createdAt' } },
+              revenue: {
+                $sum: { $cond: [{ $in: ['$status', ['confirmed', 'completed']] }, '$totalPrice', 0] },
+              },
+              bookingsCount: { $sum: 1 },
+              completedBookings: {
+                $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] },
+              },
+              cancelledBookings: {
+                $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] },
+              },
+            },
+          },
+          { $sort: { _id: 1 } },
+        ],
+        byProperty: [
+          {
+            $group: {
+              _id: '$property',
+              revenue: {
+                $sum: { $cond: [{ $in: ['$status', ['confirmed', 'completed']] }, '$totalPrice', 0] },
+              },
+              bookingsCount: { $sum: 1 },
+            },
+          },
+          { $sort: { revenue: -1 } },
+        ],
+        byStatus: [
+          {
+            $group: {
+              _id: '$status',
+              count: { $sum: 1 },
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  const f = facetResults[0] ?? { byMonth: [], byProperty: [], byStatus: [] };
+
+  const monthMap = new Map<string, MonthFacetRow>();
+  for (const r of f.byMonth) {
+    monthMap.set(r._id, r);
+  }
+
+  let totalRevenue = 0;
+  let totalBookings = 0;
+
+  const monthly: MonthlyOwnerMetric[] = slots.map((slot) => {
+    const data = monthMap.get(slot.month);
+    const rev = data?.revenue ?? 0;
+    const count = data?.bookingsCount ?? 0;
+    totalRevenue += rev;
+    totalBookings += count;
+    return {
+      month: slot.month,
+      label: slot.label,
+      revenue: rev,
+      bookingsCount: count,
+      completedBookings: data?.completedBookings ?? 0,
+      cancelledBookings: data?.cancelledBookings ?? 0,
+    };
+  });
+
+  const propIds = f.byProperty.map((p) => p._id);
+  const props = await Property.find({ _id: { $in: propIds } })
+    .select('title')
+    .lean<{ _id: Types.ObjectId; title: string }[]>();
+  const titleMap = new Map<string, string>(props.map((p) => [String(p._id), p.title]));
+
+  const propertyBreakdown: PropertyRevenueBreakdown[] = f.byProperty.map((p) => ({
+    propertyId: String(p._id),
+    title: titleMap.get(String(p._id)) || 'Listing',
+    revenue: p.revenue,
+    bookingsCount: p.bookingsCount,
+  }));
+
+  const bookingStatusDistribution = { pending: 0, confirmed: 0, completed: 0, cancelled: 0 };
+  for (const s of f.byStatus) {
+    if (s._id in bookingStatusDistribution) {
+      bookingStatusDistribution[s._id] = s.count;
+    }
+  }
+
+  return {
+    periodMonths: months,
+    startDate: startDate.toISOString(),
+    totalRevenue,
+    totalBookings,
+    monthly,
+    propertyBreakdown,
+    bookingStatusDistribution,
+  };
+}
+
+/** Get cached or freshly aggregated owner analytics charts data. */
+export async function getOwnerAnalytics(ownerId: string, months: number = 6): Promise<OwnerAnalyticsResult> {
+  return cacheAside<OwnerAnalyticsResult>(
+    cacheKeys.ownerAnalytics(ownerId, months),
+    TTL.analytics,
+    () => computeOwnerAnalytics(ownerId, months),
+  );
+}
+
