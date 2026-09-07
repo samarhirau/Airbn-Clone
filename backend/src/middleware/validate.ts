@@ -12,9 +12,10 @@ export function validate(schemas: ValidationSchemas): RequestHandler {
     try {
       if (schemas.params) req.params = schemas.params.parse(req.params) as Request['params'];
       if (schemas.query) {
-        // req.query has no setter on some Express versions; assign defensively.
         const parsed = schemas.query.parse(req.query);
-        (req as unknown as { query: unknown }).query = parsed;
+        const query = req.query as Record<string, unknown>;
+        for (const key of Object.keys(query)) delete query[key];
+        Object.assign(query, parsed);
       }
       if (schemas.body) req.body = schemas.body.parse(req.body);
       next();
