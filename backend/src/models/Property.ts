@@ -32,6 +32,14 @@ const propertySchema = new Schema(
       area: { type: String, trim: true, index: true },
       city: { type: String, required: true, trim: true },
       country: { type: String, trim: true, default: '' },
+        coordinates: {
+        lat: { type: Number },
+        lng: { type: Number },
+      },
+      geo: {
+        type: { type: String, enum: ['Point'], default: 'Point' },
+        coordinates: { type: [Number], default: [0, 0] }, // [longitude, latitude]
+      },
     },
     pricePerNight: { type: Number, required: true, min: 0 },
     propertyType: { type: String, enum: PropertyTypes, required: true },
@@ -67,6 +75,7 @@ propertySchema.index({ isActive: 1, 'location.city': 1, createdAt: -1 });
 // Range filter on price and equality filter on type.
 propertySchema.index({ pricePerNight: 1 });
 propertySchema.index({ propertyType: 1 });
+propertySchema.index({ 'location.geo': '2dsphere' }, { sparse: true });
 
 export type PropertyAttrs = InferSchemaType<typeof propertySchema> & { _id: Types.ObjectId };
 export const Property: Model<PropertyAttrs> =

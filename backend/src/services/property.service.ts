@@ -21,7 +21,13 @@ export interface PublicProperty {
   owner: string;
   title: string;
   description: string;
-  location: { address?: string; area?: string; city: string; country?: string };
+  location: {
+    address?: string;
+    area?: string;
+    city: string;
+    country?: string;
+    coordinates?: { lat: number; lng: number };
+  };
   pricePerNight: number;
   propertyType: string;
   maxGuests: number;
@@ -41,7 +47,14 @@ interface PropertyLean {
   owner: Types.ObjectId;
   title: string;
   description: string;
-  location: { address?: string; area?: string; city: string; country?: string };
+  location: {
+    address?: string;
+    area?: string;
+    city: string;
+    country?: string;
+    coordinates?: { lat: number; lng: number };
+    geo?: { type: string; coordinates: [number, number] };
+  };
   pricePerNight: number;
   propertyType: string;
   maxGuests: number;
@@ -68,6 +81,10 @@ export interface PropertyListFilters {
   checkOut?: Date;
   amenities?: string[];
   sort?: string;
+  lat?: number;
+  lng?: number;
+  radiusKm?: number;
+  bounds?: string;
   page: number;
   limit: number;
 }
@@ -107,13 +124,79 @@ function escapeRegex(input: string): string {
   return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+
+export const CITY_COORDINATES: Record<string, { lat: number; lng: number }> = {
+  lisbon: { lat: 38.7223, lng: -9.1393 },
+  madrid: { lat: 40.4168, lng: -3.7038 },
+  barcelona: { lat: 41.3879, lng: 2.1699 },
+  guarda: { lat: 40.5373, lng: -7.2658 },
+  goa: { lat: 15.2993, lng: 74.124 },
+  mumbai: { lat: 19.076, lng: 72.8777 },
+  delhi: { lat: 28.6139, lng: 77.209 },
+  bangalore: { lat: 12.9716, lng: 77.5946 },
+  bengaluru: { lat: 12.9716, lng: 77.5946 },
+  manali: { lat: 32.2432, lng: 77.1892 },
+  jaipur: { lat: 26.9124, lng: 75.7873 },
+  shimla: { lat: 31.1048, lng: 77.1734 },
+  rishikesh: { lat: 30.0869, lng: 78.2676 },
+  udaipur: { lat: 24.5854, lng: 73.7125 },
+  kolkata: { lat: 22.5726, lng: 88.3639 },
+  chennai: { lat: 13.0827, lng: 80.2707 },
+  pune: { lat: 18.5204, lng: 73.8567 },
+  hyderabad: { lat: 17.385, lng: 78.4867 },
+  kerala: { lat: 9.9312, lng: 76.2673 },
+  kochi: { lat: 9.9312, lng: 76.2673 },
+  agra: { lat: 27.1767, lng: 78.0081 },
+  varanasi: { lat: 25.3176, lng: 82.9739 },
+  darjeeling: { lat: 27.041, lng: 88.2663 },
+  ooty: { lat: 11.4102, lng: 76.695 },
+  munnar: { lat: 10.0889, lng: 77.0595 },
+  paris: { lat: 48.8566, lng: 2.3522 },
+  london: { lat: 51.5074, lng: -0.1278 },
+  newyork: { lat: 40.7128, lng: -74.006 },
+  tokyo: { lat: 35.6762, lng: 139.6503 },
+};
+
+/** Resolve coordinates with city fallback and synchronize GeoJSON Point for MongoDB 2dsphere. */
+export function resolveCoordinates(loc: {
+  city: string;
+  coordinates?: { lat: number; lng: number };
+}): {
+  coordinates: { lat: number; lng: number };
+  geo: { type: 'Point'; coordinates: [number, number] };
+} {
+  let coords = loc.coordinates;
+  if (!coords || typeof coords.lat !== 'number' || typeof coords.lng !== 'number') {
+    const key = loc.city.toLowerCase().trim();
+    coords = CITY_COORDINATES[key] ?? { lat: 20.5937, lng: 78.9629 };
+  }
+  return {
+    coordinates: coords,
+    geo: {
+      type: 'Point',
+      coordinates: [coords.lng, coords.lat], // [longitude, latitude] GeoJSON
+    },
+  };
+}
+
 function toPublicProperty(d: PropertyLean): PublicProperty {
+    const coords =
+    d.location.coordinates ??
+    (d.location.geo?.coordinates
+      ? { lat: d.location.geo.coordinates[1], lng: d.location.geo.coordinates[0] }
+      : undefined);
   return {
     id: String(d._id),
     owner: String(d.owner),
     title: d.title,
     description: d.description,
-    location: d.location,
+    location: {
+      address: d.location.address,
+      area: d.location.area,
+      city: d.location.city,
+      country: d.location.country,
+      coordinates: coords,
+    },
     pricePerNight: d.pricePerNight,
     propertyType: d.propertyType,
     maxGuests: d.maxGuests,
@@ -158,6 +241,30 @@ async function buildListQuery(f: PropertyListFilters): Promise<Record<string, un
       query._id = { $nin: busyIds };
     }
   }
+   // Geospatial proximity query ($nearSphere)
+  if (f.lat !== undefined && f.lng !== undefined) {
+    const maxMeters = (f.radiusKm || 50) * 1000;
+    query['location.geo'] = {
+      $nearSphere: {
+        $geometry: {
+          type: 'Point',
+          coordinates: [f.lng, f.lat],
+        },
+        $maxDistance: maxMeters,
+      },
+    };
+  } else if (f.bounds) {
+    // Map bounding box ($geoWithin $box): "south,west,north,east"
+    const [south, west, north, east] = f.bounds.split(',').map(Number);
+    query['location.geo'] = {
+      $geoWithin: {
+        $box: [
+          [west, south], // bottom-left [lng, lat]
+          [east, north], // top-right [lng, lat]
+        ],
+      },
+    };
+  }
 
   return query;
 }
@@ -176,6 +283,10 @@ export async function listProperties(filters: PropertyListFilters): Promise<Prop
     checkOut: filters.checkOut?.toISOString(),
     amenities: filters.amenities,
     sort: filters.sort ?? 'newest',
+    lat: filters.lat,
+    lng: filters.lng,
+    radiusKm: filters.radiusKm,
+    bounds: filters.bounds,
     page: filters.page,
     limit: filters.limit,
   });
@@ -183,10 +294,14 @@ export async function listProperties(filters: PropertyListFilters): Promise<Prop
 
   return cacheAside<PropertyListResult>(key, TTL.propertyList, async () => {
     const query = await buildListQuery(filters);
-    const sort = resolveSort(filters.sort, SORT_MAP, 'newest');
+    const isGeoNear = filters.lat !== undefined && filters.lng !== undefined;
+    const sort = isGeoNear && !filters.sort ? undefined : resolveSort(filters.sort, SORT_MAP, 'newest');
+
+    const cursor = Property.find(query);
+    if (sort) cursor.sort(sort);
+
     const [docs, total] = await Promise.all([
-      Property.find(query)
-        .sort(sort)
+      cursor
         .skip(getSkip(filters.page, filters.limit))
         .limit(filters.limit)
         .lean<PropertyLean[]>(),
@@ -215,11 +330,16 @@ export async function getPropertyById(id: string, viewer?: Actor): Promise<Publi
 }
 
 export async function createProperty(ownerId: string, input: CreatePropertyInput): Promise<PublicProperty> {
+  const resolved = resolveCoordinates(input.location);
   const created = await Property.create({
     owner: new Types.ObjectId(ownerId),
     title: input.title,
     description: input.description,
-    location: input.location,
+    location: {
+      ...input.location,
+      coordinates: resolved.coordinates,
+      geo: resolved.geo,
+    },
     pricePerNight: input.pricePerNight,
     propertyType: input.propertyType,
     maxGuests: input.maxGuests,
@@ -248,7 +368,18 @@ export async function updateProperty(
   const $set: Record<string, unknown> = {};
   for (const field of UPDATABLE_FIELDS) {
     const value = input[field];
-    if (value !== undefined) $set[field] = value;
+    if (value !== undefined) {
+      if (field === 'location' && input.location) {
+        const resolved = resolveCoordinates(input.location);
+        $set['location'] = {
+          ...input.location,
+          coordinates: resolved.coordinates,
+          geo: resolved.geo,
+        };
+      } else {
+        $set[field] = value;
+      }
+    }
   }
 
   const updated = await Property.findByIdAndUpdate(id, { $set }, { new: true, runValidators: true }).lean<

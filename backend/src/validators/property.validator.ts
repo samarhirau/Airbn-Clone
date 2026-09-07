@@ -9,6 +9,13 @@ const imageInput = z.object({
   publicId: z.string().trim().max(200).optional(),
 });
 
+/** Geographic coordinates (latitude -90..90, longitude -180..180). */
+export const coordinatesInput = z.object({
+  lat: z.coerce.number().min(-90).max(90),
+  lng: z.coerce.number().min(-180).max(180),
+});
+export type CoordinatesInput = z.infer<typeof coordinatesInput>;
+
 /** Location sub-document. `city` is the only required part (it drives search). */
 const locationInput = z.object({
   address: z.string().trim().max(200).optional(),
@@ -75,6 +82,13 @@ export const listPropertiesQuery = paginationQuery
       .pipe(z.array(z.string().min(1).max(50)).max(50))
       .optional(),
     sort: z.enum(propertySortTokens).optional(),
+    lat: z.coerce.number().min(-90).max(90).optional(),
+    lng: z.coerce.number().min(-180).max(180).optional(),
+    radiusKm: z.coerce.number().positive().max(500).default(50).optional(),
+    bounds: z
+      .string()
+      .regex(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?$/, 'bounds must be south,west,north,east')
+      .optional(),
   })
   .refine((data) => !(data.minPrice !== undefined && data.maxPrice !== undefined) || data.minPrice <= data.maxPrice, {
     message: 'minPrice must be less than or equal to maxPrice.',
@@ -87,6 +101,10 @@ export const listPropertiesQuery = paginationQuery
   .refine((data) => !(data.checkIn && data.checkOut) || data.checkIn < data.checkOut, {
     message: 'checkOut must be after checkIn.',
     path: ['checkOut'],
+    })
+  .refine((data) => (data.lat === undefined) === (data.lng === undefined), {
+    message: 'Provide both lat and lng, or neither.',
+    path: ['lat'],
   });
 export type ListPropertiesInput = z.infer<typeof listPropertiesQuery>;
 
