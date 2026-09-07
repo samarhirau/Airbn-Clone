@@ -14,3 +14,5 @@ export {
   type BookingStatus,
   type BookingAttrs,
 } from './Booking';
+export { Review, type ReviewAttrs } from './Review';
+export { Wishlist, type WishlistAttrs } from './Wishlist';

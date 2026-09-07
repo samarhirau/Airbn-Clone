@@ -13,6 +13,8 @@ import healthRoute from './routes/health.route';
 import authRoute from './routes/auth.route';
 import propertyRoute from './routes/property.route';
 import bookingRoute from './routes/booking.route';
+import reviewRoute from './routes/review.route';
+import wishlistRoute from './routes/wishlist.route';
 
 export function createApp(): Express {
   const app: Express = express();
@@ -47,7 +49,8 @@ export function createApp(): Express {
   app.use('/api/auth', authRoute);
   app.use('/api/properties', propertyRoute);
   app.use('/api/bookings', bookingRoute);
-
+  app.use('/api/reviews', reviewRoute);
+  app.use('/api/wishlist', wishlistRoute);
 
   // 404 and centralized error handling (must be last)
   app.use(notFound);
