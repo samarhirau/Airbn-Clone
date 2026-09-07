@@ -1,52 +1,92 @@
-import mongoose, { Schema, Types, type InferSchemaType, type Model } from 'mongoose';
+import { Schema, model, type Document, type Types } from 'mongoose';
 
-export const BookingStatuses = ['pending', 'confirmed', 'cancelled', 'completed'] as const;
-export type BookingStatus = (typeof BookingStatuses)[number];
+export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
+export const BookingStatuses: [BookingStatus, ...BookingStatus[]] = [
+  'pending',
+  'confirmed',
+  'cancelled',
+  'completed',
+];
 
-/** Statuses that occupy the calendar and therefore block overlapping bookings. */
 export const ACTIVE_BOOKING_STATUSES: BookingStatus[] = ['pending', 'confirmed'];
 
-const bookingSchema = new Schema(
-  {
-    customer: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    property: { type: Schema.Types.ObjectId, ref: 'Property', required: true },
-    // Denormalized owner id so owner dashboards can query bookings without a join.
-    owner: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+export interface CancellationInfo {
+  cancelledAt: Date;
+  cancelledBy: Types.ObjectId;
+  reason?: string | null;
+}
 
-    // Normalized to UTC midnight. Stay covers nights [checkIn, checkOut).
+export interface BookingAttrs {
+  _id: Types.ObjectId;
+  customer: Types.ObjectId;
+  property: Types.ObjectId;
+  owner: Types.ObjectId;
+  checkIn: Date;
+  checkOut: Date;
+  guests: number;
+  numberOfNights: number;
+  pricePerNight: number;
+  originalPrice?: number;
+  discount?: number;
+  coupon?: Types.ObjectId;
+  couponCode?: string;
+  totalPrice: number;
+  status: BookingStatus;
+  cancellation?: CancellationInfo;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type BookingDocument = Document<unknown, object, BookingAttrs> & BookingAttrs;
+
+const cancellationSchema = new Schema<CancellationInfo>(
+  {
+    cancelledAt: { type: Date, required: true },
+    cancelledBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    reason: { type: String, maxlength: 500, default: null },
+  },
+  { _id: false },
+);
+
+const bookingSchema = new Schema<BookingDocument>(
+  {
+    customer: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    property: { type: Schema.Types.ObjectId, ref: 'Property', required: true, index: true },
+    owner: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     checkIn: { type: Date, required: true },
     checkOut: { type: Date, required: true },
-
     guests: { type: Number, required: true, min: 1 },
     numberOfNights: { type: Number, required: true, min: 1 },
-    // Price snapshot at booking time (owner may change the listing price later).
     pricePerNight: { type: Number, required: true, min: 0 },
+    originalPrice: { type: Number, min: 0 },
+    discount: { type: Number, default: 0, min: 0 },
+    coupon: { type: Schema.Types.ObjectId, ref: 'Coupon' },
+    couponCode: { type: String, uppercase: true, trim: true },
     totalPrice: { type: Number, required: true, min: 0 },
-
-    status: { type: String, enum: BookingStatuses, default: 'confirmed', required: true },
-
-    cancellation: {
-      cancelledAt: { type: Date, default: null },
-      cancelledBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
-      reason: { type: String, default: null },
+    status: {
+      type: String,
+      required: true,
+      enum: BookingStatuses,
+      default: 'confirmed',
+      index: true,
     },
+    cancellation: { type: cancellationSchema, default: undefined },
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true, versionKey: false },
+    toJSON: {
+      transform(_doc, ret: Record<string, unknown>) {
+        ret.id = String(ret._id);
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
   },
 );
 
-// ── Indexes ─────────────────────────────────────────────────────────────────
-// Overlap detection: find active bookings for a property intersecting a range.
 bookingSchema.index({ property: 1, status: 1, checkIn: 1, checkOut: 1 });
-// "My bookings" listing.
-bookingSchema.index({ customer: 1, createdAt: -1 });
-// Owner dashboards / property bookings.
-bookingSchema.index({ owner: 1, status: 1 });
-// Completion job: find active stays whose checkout has passed.
-bookingSchema.index({ status: 1, checkOut: 1 });
+bookingSchema.index({ customer: 1, status: 1, createdAt: -1 });
+bookingSchema.index({ owner: 1, status: 1, createdAt: -1 });
 
-export type BookingAttrs = InferSchemaType<typeof bookingSchema> & { _id: Types.ObjectId };
-export const Booking: Model<BookingAttrs> =
-  (mongoose.models.Booking as Model<BookingAttrs>) || mongoose.model<BookingAttrs>('Booking', bookingSchema);
+export const Booking = model<BookingDocument>('Booking', bookingSchema);

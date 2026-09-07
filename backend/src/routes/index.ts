@@ -7,6 +7,7 @@ import reviewRoute from './review.route';
 import wishlistRoute from './wishlist.route';
 import ownerRoute from './owner.route';
 import adminRoute from './admin.route';
+import couponRoute from './coupon.route';
 
 const router = Router();
 
@@ -18,5 +19,6 @@ router.use('/reviews', reviewRoute);
 router.use('/wishlist', wishlistRoute);
 router.use('/owner', ownerRoute);
 router.use('/admin', adminRoute);
+router.use('/coupons', couponRoute);
 
 export default router;

@@ -7,8 +7,8 @@ import { normalizeStay, startOfTodayUtc } from '../utils/dates';
 import { AppError, ErrorCodes } from '../utils/errors';
 import { getSkip } from '../utils/pagination';
 import { invalidateBookingDashboards } from '../cache/invalidation';
+import { validateCoupon, recordCouponUsage, type CouponValidationResult } from './coupon.service';
 import type { CreateBookingInput } from '../validators/booking.validator';
-
 
 const CONFIRMED: BookingStatus = 'confirmed';
 
@@ -20,10 +20,13 @@ interface BookingComputation {
   guests: number;
   numberOfNights: number;
   pricePerNight: number;
+  originalPrice: number;
+  discount: number;
+  coupon?: Types.ObjectId;
+  couponCode?: string;
   totalPrice: number;
 }
 
-/** True for MongoDB write-conflict / transient transaction errors that warrant a retry. */
 function isTransientError(err: unknown): boolean {
   if (typeof err !== 'object' || err === null) return false;
   const e = err as { hasErrorLabel?: (l: string) => boolean; code?: number; codeName?: string };
@@ -31,7 +34,7 @@ function isTransientError(err: unknown): boolean {
   return e.code === 112 || e.codeName === 'WriteConflict';
 }
 
-/** Validate inputs and compute the priced stay, or throw a domain error. */
+// Validate input, calculate nights, price, and coupon discount
 async function prepareBooking(customerId: string, input: CreateBookingInput): Promise<BookingComputation> {
   const stay = normalizeStay(input.checkIn, input.checkOut, { allowPast: false });
   if (!stay.ok) {
@@ -54,6 +57,21 @@ async function prepareBooking(customerId: string, input: CreateBookingInput): Pr
   }
 
   const pricePerNight = property.pricePerNight;
+  const originalPrice = pricePerNight * stay.nights;
+
+  let discount = 0;
+  let couponId: Types.ObjectId | undefined;
+  let couponCode: string | undefined;
+
+  if (input.couponCode) {
+    const couponResult: CouponValidationResult = await validateCoupon(input.couponCode, originalPrice);
+    discount = couponResult.discountAmount;
+    couponId = couponResult.couponId;
+    couponCode = couponResult.code;
+  }
+
+  const totalPrice = Math.max(0, originalPrice - discount);
+
   return {
     propertyId: property._id,
     ownerId: property.owner as Types.ObjectId,
@@ -62,7 +80,11 @@ async function prepareBooking(customerId: string, input: CreateBookingInput): Pr
     guests: input.guests,
     numberOfNights: stay.nights,
     pricePerNight,
-    totalPrice: pricePerNight * stay.nights,
+    originalPrice,
+    discount,
+    coupon: couponId,
+    couponCode,
+    totalPrice,
   };
 }
 
@@ -76,17 +98,21 @@ function bookingDoc(customerId: string, c: BookingComputation): Partial<BookingA
     guests: c.guests,
     numberOfNights: c.numberOfNights,
     pricePerNight: c.pricePerNight,
+    originalPrice: c.originalPrice,
+    discount: c.discount,
+    coupon: c.coupon,
+    couponCode: c.couponCode,
     totalPrice: c.totalPrice,
     status: CONFIRMED,
   };
 }
 
+// Transactional booking creation
 async function createWithTransaction(customerId: string, c: BookingComputation): Promise<BookingAttrs> {
   const session: ClientSession = await mongoose.startSession();
   try {
     let created: BookingAttrs | undefined;
     await session.withTransaction(async () => {
-      // (1) Guard write: serialize concurrent bookings for the same property.
       const prop = await Property.findOneAndUpdate(
         { _id: c.propertyId, isActive: true },
         { $inc: { bookingSeq: 1 } },
@@ -95,14 +121,18 @@ async function createWithTransaction(customerId: string, c: BookingComputation):
       if (!prop) {
         throw AppError.conflict('This property is not available for booking.', ErrorCodes.BOOKING_INVALID);
       }
-      // (2) Overlap re-check within the transaction (sees other committed bookings).
+
       const conflict = await hasConflictingBooking(c.propertyId, c.checkIn, c.checkOut, { session });
       if (conflict) {
         throw AppError.conflict('These dates are no longer available.', ErrorCodes.BOOKING_CONFLICT);
       }
-      // (3) Insert booking.
+
       const docs = await Booking.create([bookingDoc(customerId, c)], { session });
       created = docs[0].toObject() as BookingAttrs;
+
+      if (c.coupon) {
+        await recordCouponUsage(c.coupon, session);
+      }
     });
     return created as BookingAttrs;
   } finally {
@@ -110,6 +140,7 @@ async function createWithTransaction(customerId: string, c: BookingComputation):
   }
 }
 
+// Fallback booking creation without transactions
 async function createWithoutTransaction(customerId: string, c: BookingComputation): Promise<BookingAttrs> {
   if (await hasConflictingBooking(c.propertyId, c.checkIn, c.checkOut)) {
     throw AppError.conflict('These dates are no longer available.', ErrorCodes.BOOKING_CONFLICT);
@@ -122,6 +153,11 @@ async function createWithoutTransaction(customerId: string, c: BookingComputatio
     await Booking.deleteOne({ _id: booking._id });
     throw AppError.conflict('These dates are no longer available.', ErrorCodes.BOOKING_CONFLICT);
   }
+
+  if (c.coupon) {
+    await recordCouponUsage(c.coupon);
+  }
+
   return booking.toObject() as BookingAttrs;
 }
 

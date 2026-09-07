@@ -16,3 +16,4 @@ export {
 } from './Booking';
 export { Review, type ReviewAttrs } from './Review';
 export { Wishlist, type WishlistAttrs } from './Wishlist';
+export { Coupon, type CouponAttrs, type CouponDocument, type DiscountType } from './Coupon';

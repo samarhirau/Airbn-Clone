@@ -25,3 +25,15 @@ export function buildPagination(page: number, limit: number, total: number): Pag
     totalPages: limit > 0 ? Math.ceil(total / limit) : 0,
   };
 }
+
+
+export function apiResponse<T>(
+  data: T,
+  pagination?: { page: number; limit: number; total: number },
+): { success: true; data: T; pagination?: PaginationMeta } {
+  return {
+    success: true,
+    data,
+    ...(pagination ? { pagination: buildPagination(pagination.page, pagination.limit, pagination.total) } : {}),
+  };
+}
