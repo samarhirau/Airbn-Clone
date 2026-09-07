@@ -17,3 +17,10 @@ export {
 export { Review, type ReviewAttrs } from './Review';
 export { Wishlist, type WishlistAttrs } from './Wishlist';
 export { Coupon, type CouponAttrs, type CouponDocument, type DiscountType } from './Coupon';
+export {
+  Payment,
+  type PaymentAttrs,
+  type PaymentDocument,
+  type PaymentStatus,
+  type PaymentMethod,
+} from './Payment';
