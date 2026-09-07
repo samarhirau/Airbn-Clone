@@ -10,6 +10,8 @@ import {
   listMyReviews,
   getReviewEligibility,
 } from '../controllers/review.controller';
+import { reviewLimiter } from '../middleware/rateLimit';
+import { registerPaths } from '../config/swagger';
 
 const router = Router();
 
@@ -17,6 +19,7 @@ router.post(
   '/',
   authenticate,
   authorize('customer'),
+  reviewLimiter,
   validate({ body: createReviewBody }),
   createReview,
 );
@@ -36,5 +39,41 @@ router.get(
   validate({ params: propertyIdParams, query: paginationQuery }),
   listPropertyReviews,
 );
+
+
+registerPaths({
+  '/reviews': {
+    post: {
+      tags: ['Reviews'],
+      summary: 'Create a review for a completed booking',
+      security: [{ bearerAuth: [] }],
+      responses: { 201: { description: 'Review created' } },
+    },
+  },
+  '/reviews/me': {
+    get: {
+      tags: ['Reviews'],
+      summary: 'List caller reviews',
+      security: [{ bearerAuth: [] }],
+      responses: { 200: { description: 'Reviews list' } },
+    },
+  },
+  '/reviews/eligibility/{bookingId}': {
+    get: {
+      tags: ['Reviews'],
+      summary: 'Check review eligibility',
+      security: [{ bearerAuth: [] }],
+      responses: { 200: { description: 'Eligibility status' } },
+    },
+  },
+  '/reviews/property/{propertyId}': {
+    get: {
+      tags: ['Reviews'],
+      summary: 'Public property reviews',
+      responses: { 200: { description: 'Property reviews list' } },
+    },
+  },
+});
+
 
 export default router;

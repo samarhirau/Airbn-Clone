@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { logger } from './logger';
 
 mongoose.set('strictQuery', true);
 
@@ -6,15 +7,15 @@ let isConnected = false;
 
 // Event listeners 
 mongoose.connection.on('connected', () => {
-  console.log('MongoDB connected successfully');
+  logger.info('MongoDB connected successfully');
 });
 
 mongoose.connection.on('error', (err) => {
-  console.error('MongoDB connection error:', err);
+  logger.error('MongoDB connection error:', err);
 });
 
 mongoose.connection.on('disconnected', () => {
-  console.warn('MongoDB disconnected');
+  logger.warn('MongoDB disconnected');
 });
 
 export async function connectDatabase(uri: string = process.env.MONGODB_URI ?? 'mongodb://localhost:27017/airbn'): Promise<typeof mongoose> {
@@ -33,6 +34,20 @@ export async function connectDatabase(uri: string = process.env.MONGODB_URI ?? '
   isConnected = true;
   return mongoose;
 }
+
+// Build schema-declared indexes explicitly in production
+export async function ensureIndexes(): Promise<void> {
+  const models = Object.values(mongoose.models);
+  await Promise.all(
+    models.map((m) =>
+      m.syncIndexes().catch((err) => {
+        logger.error({ err, model: m.modelName }, 'Failed to sync indexes');
+      }),
+    ),
+  );
+  logger.info(`Ensured indexes for ${models.length} model(s)`);
+}
+
 
 export async function disconnectDatabase(): Promise<void> {
   if (!isConnected) return;

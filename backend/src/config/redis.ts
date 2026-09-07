@@ -7,7 +7,8 @@ let client: Redis | null = null;
 let ready = false;
 
 export function initRedis(): Redis | null {
-  if (!process.env.redisEnabled || !process.env.REDIS_URL) {
+  const redisEnabled = process.env.REDIS_ENABLED === 'true' || process.env.redisEnabled === 'true';
+  if (!redisEnabled || !process.env.REDIS_URL) {
     logger.warn('Redis not configured (REDIS_URL missing) — caching disabled, in-memory rate limiting');
     return null;
   }
