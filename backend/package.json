@@ -1,0 +1,32 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/samarhirau/Airbn-Clone#readme",
+  "bugs": {
+    "url": "https://github.com/samarhirau/Airbn-Clone/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samarhirau/Airbn-Clone.git"
+  },
+  "license": "ISC",
+  "author": "samar hirau",
+  "type": "module",
+  "main": "src/server.ts",
+  "scripts": {
+    "test": "vitest run",
+    "dev": "node --env-file=.env src/server.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node --env-file=.env dist/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "mongoose": "^9.9.5"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/node": "^26.4.1"
+  }
+}
