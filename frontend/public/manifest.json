@@ -1,0 +1,17 @@
+{
+  "short_name": "StayHub",
+  "name": "StayHub • Vacation Homes & Luxury Rentals",
+  "description": "Discover exceptional vacation homes, cabins, beach houses, and boutique condos across the world.",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "48x48 72x72 96x96 128x128 256x256 512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FF385C",
+  "display": "standalone",
+  "orientation": "portrait-primary"
+}

@@ -4,7 +4,7 @@ import CategoryBar from '../components/home/CategoryBar';
 import PropertyCard from '../components/home/PropertyCard';
 import StorefrontMap from '../components/home/StorefrontMap';
 import api from '../services/api';
-import { SearchX, RefreshCw, Map as MapIcon, List, SlidersHorizontal } from 'lucide-react';
+import { SearchX, RefreshCw, Map as MapIcon, List } from 'lucide-react';
 
 export default function Home() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -111,6 +111,92 @@ export default function Home() {
     setSearchParams(new URLSearchParams());
   };
 
+  // Intelligent curated sections for section headers
+  const curatedSections = useMemo(() => {
+    if (!properties || properties.length === 0) return null;
+
+    const searchedCity = searchParams.get('city');
+
+    // If searched for a specific city, show custom section
+    if (searchedCity) {
+      return [
+        {
+          id: 'searched-city',
+          title: `Available in ${searchedCity} this weekend`,
+          subtitle: `${properties.length} spaces ready for check-in`,
+          items: properties,
+          onViewAll: null,
+        },
+      ];
+    }
+
+    // Curated storefront carousels matching Airbnb exact style
+    const goaListings = properties.filter(
+      (p) =>
+        p.location?.city?.toLowerCase() === 'goa' ||
+        p.title?.toLowerCase().includes('goa') ||
+        p.propertyType === 'villa'
+    );
+
+    const metroListings = properties.filter(
+      (p) =>
+        ['mumbai', 'barcelona', 'madrid'].includes(p.location?.city?.toLowerCase()) ||
+        ['condo', 'apartment', 'loft'].includes(p.propertyType)
+    );
+
+    const scenicListings = properties.filter(
+      (p) =>
+        ['pune', 'guarda', 'cascais', 'lisbon'].includes(p.location?.city?.toLowerCase()) ||
+        ['cabin', 'cottage', 'villa'].includes(p.propertyType)
+    );
+
+    const sections = [];
+
+    if (goaListings.length > 0) {
+      sections.push({
+        id: 'goa',
+        title: 'Popular homes in Goa',
+        subtitle: 'Coastal villas & beachside stays',
+        items: goaListings,
+        onViewAll: () => {
+          const next = new URLSearchParams(searchParams);
+          next.set('city', 'Goa');
+          setSearchParams(next);
+        },
+      });
+    }
+
+    if (metroListings.length > 0) {
+      sections.push({
+        id: 'mumbai-metro',
+        title: 'Available in Mumbai & top cities this weekend',
+        subtitle: 'High-speed WiFi & skyline balconies',
+        items: metroListings,
+        onViewAll: () => {
+          const next = new URLSearchParams(searchParams);
+          next.set('propertyType', 'condo');
+          setSearchParams(next);
+        },
+      });
+    }
+
+    if (scenicListings.length > 0) {
+      sections.push({
+        id: 'pune-scenic',
+        title: 'Homes in Pune & scenic getaways',
+        subtitle: 'Nature retreats, cabins & valley views',
+        items: scenicListings,
+        onViewAll: () => {
+          const next = new URLSearchParams(searchParams);
+          next.set('propertyType', 'cabin');
+          setSearchParams(next);
+        },
+      });
+    }
+
+    return sections;
+  }, [properties, searchParams]);
+
   return (
     <div className="min-h-screen bg-white pb-24 relative">
       {/* 1. Horizontal Categories Bar */}
@@ -124,7 +210,8 @@ export default function Home() {
       />
 
       {/* 2. Main Content (Grid View vs Map View) */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+
         {/* Loading Skeletons */}
         {loading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -182,15 +269,44 @@ export default function Home() {
           </div>
         )}
 
-        {/* Render Grid View */}
+    {/* Render Grid View with Curated Section Rows */}
         {!loading && !error && properties.length > 0 && viewMode === 'grid' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 animate-in fade-in duration-150">
-            {properties.map((property) => (
+          <div className="space-y-8 animate-in fade-in duration-150">
+            {/* 1. Curated Section Rows with Bold Headers & (< >) Nav Buttons */}
+            {curatedSections && curatedSections.length > 0 && (
+              <div className="space-y-6">
+                {curatedSections.map((sec) => (
+                  <PropertySectionRow
+                    key={sec.id}
+                    title={sec.title}
+                    subtitle={sec.subtitle}
+                    properties={sec.items}
+                    onViewAll={sec.onViewAll}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* 2. Global Comprehensive Grid */}
+            <div className="pt-4 border-t border-gray-100">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-xl sm:text-2xl font-bold text-charcoal flex items-center gap-2">
+                  <span>Explore all verified stays</span>
+                  <span className="text-xs font-semibold text-meta">
+                    • {properties.length} {properties.length === 1 ? 'home' : 'homes'} available
+                  </span>
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {properties.map((property) => (
               <PropertyCard
                 key={property.id || property._id}
                 property={property}
               />
             ))}
+              </div>
+            </div>
           </div>
         )}
 
