@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   Briefcase,
   Compass,
@@ -11,6 +11,8 @@ import {
   Loader2,
   Search,
   ArrowRight,
+  CreditCard,
+  CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import api, { getErrorMessage } from '../../services/api';
@@ -19,8 +21,10 @@ import BookingStatusBadge from '../../components/booking/BookingStatusBadge';
 import BookingReceiptModal from '../../components/booking/BookingReceiptModal';
 import CancelBookingModal from '../../components/booking/CancelBookingModal';
 import WriteReviewModal from '../../components/booking/WriteReviewModal';
+import PaymentModal from '../../components/payment/PaymentModal';
 
 export default function Bookings() {
+
   const { user, isAuthenticated } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,14 +36,15 @@ export default function Bookings() {
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [cancellingBooking, setCancellingBooking] = useState(null);
   const [reviewingBooking, setReviewingBooking] = useState(null);
+  const [payingBooking, setPayingBooking] = useState(null);
 
   const fetchBookings = async () => {
     setLoading(true);
     setError('');
     try {
       const response = await api.get('/bookings');
-      const items = response?.data?.bookings || response?.bookings || [];
-      setBookings(items);
+      const data = response?.data?.bookings || response?.bookings || [];
+      setBookings(data);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -55,10 +60,27 @@ export default function Bookings() {
     }
   }, [isAuthenticated]);
 
-  // Handle local state update when a booking is cancelled
-  const handleBookingCancelled = (updatedBooking) => {
+  // If navigated from reservation flow with a booking to pay
+  useEffect(() => {
+    if (location.state?.payBooking) {
+      setPayingBooking(location.state.payBooking);
+    } else if (location.state?.payBookingId && bookings.length > 0) {
+      const target = bookings.find(
+        (b) => (b._id || b.id) === location.state.payBookingId
+      );
+      if (target) {
+        setPayingBooking(target);
+      }
+    }
+  }, [location.state, bookings]);
+
+  const handleBookingCancelled = (cancelledBookingId) => {
     setBookings((prev) =>
-      prev.map((b) => ((b.id || b._id) === (updatedBooking.id || updatedBooking._id) ? updatedBooking : b))
+     prev.map((b) =>
+        (b.id === cancelledBookingId || b._id === cancelledBookingId)
+          ? { ...b, status: 'cancelled' }
+          : b
+      )
     );
   };
 
@@ -66,17 +88,16 @@ export default function Bookings() {
   const filteredBookings = useMemo(() => {
     const now = new Date();
     return bookings.filter((booking) => {
-      const status = booking.status?.toLowerCase();
-      const checkOutDate = booking.checkOut ? new Date(booking.checkOut) : null;
+      const status = booking.status;
+      const checkOutDate = new Date(booking.checkOut);
 
-      // 1. Tab matching
+       // 1. Tab filtering
       if (activeTab === 'upcoming') {
-        if (status === 'cancelled' || status === 'completed') return false;
-        if (checkOutDate && checkOutDate < now) return false;
-      } else if (activeTab === 'completed') {
-        const isPast = checkOutDate && checkOutDate < now;
-        if (status !== 'completed' && !isPast) return false;
         if (status === 'cancelled') return false;
+        if (checkOutDate < now) return false;
+      } else if (activeTab === 'completed') {
+        if (status === 'cancelled') return false;
+        if (status !== 'completed' && checkOutDate >= now) return false;
       } else if (activeTab === 'cancelled') {
         if (status !== 'cancelled') return false;
       }
@@ -125,7 +146,7 @@ export default function Bookings() {
             Trips & Reservations
           </h1>
           <p className="mt-1 text-sm text-meta">
-            Keep track of your adventures, view invoices, and manage stays.
+                       Keep track of your adventures, view invoices, complete checkout, and manage stays.
           </p>
         </div>
 
@@ -165,35 +186,50 @@ export default function Bookings() {
       </div>
 
       {/* 3. Bookings Content */}
+      
+      {/* 3. Main Body */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-pulse">
+        /* Loading Skeletons */
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {[1, 2, 3, 4].map((n) => (
-            <div key={n} className="h-48 bg-neutral-200 rounded-3xl" />
+            <div
+              key={n}
+              className="bg-white border border-surface-border rounded-3xl p-6 shadow-xs animate-pulse flex flex-col sm:flex-row gap-5"
+            >
+              <div className="sm:w-44 h-40 bg-neutral-200 rounded-2xl shrink-0" />
+              <div className="flex-1 space-y-3 py-1">
+                <div className="h-4 bg-neutral-200 rounded w-1/3" />
+                <div className="h-6 bg-neutral-200 rounded w-3/4" />
+                <div className="h-4 bg-neutral-200 rounded w-1/2" />
+                <div className="pt-4 h-8 bg-neutral-200 rounded-full w-2/3" />
+              </div>
+            </div>
           ))}
         </div>
       ) : error ? (
-        <div className="p-8 rounded-3xl bg-rose-50 border border-rose-200 text-center max-w-lg mx-auto">
-          <p className="text-sm font-semibold text-rose-600 mb-4">{error}</p>
+        /* Error State */
+        <div className="py-16 text-center">
+          <p className="text-sm font-semibold text-rose-600 mb-3">{error}</p>
           <button
             onClick={fetchBookings}
-            className="px-6 py-2.5 bg-charcoal text-white rounded-full text-xs font-semibold hover:bg-neutral-800 transition-colors cursor-pointer"
+            className="px-5 py-2.5 bg-charcoal text-white rounded-full text-xs font-bold hover:bg-neutral-800 transition-colors cursor-pointer"
           >
             Try Again
           </button>
         </div>
       ) : filteredBookings.length === 0 ? (
         /* Empty State */
-        <div className="min-h-[40vh] flex flex-col items-center justify-center text-center p-8 bg-surface-card/30 border border-surface-border rounded-3xl max-w-xl mx-auto">
-          <div className="w-14 h-14 rounded-2xl bg-airbnb/10 text-airbnb flex items-center justify-center mb-4">
-            <Compass className="w-7 h-7 stroke-[2.2]" />
+        <div className="py-20 text-center max-w-md mx-auto">
+          <div className="w-16 h-16 rounded-full bg-neutral-100 flex items-center justify-center mx-auto mb-4 text-meta">
+            <Compass className="w-8 h-8 stroke-[1.5]" />
           </div>
           <h3 className="text-xl font-bold text-charcoal mb-1">
-            {searchQuery ? 'No matching trips found' : 'No trips booked... yet!'}
+            {activeTab === 'all'
+              ? 'No trips booked... yet!'
+              : `No ${activeTab} trips found`}
           </h3>
-          <p className="text-xs sm:text-sm text-meta max-w-sm mb-6 leading-relaxed">
-            {searchQuery
-              ? 'Try changing your search terms or view all trips.'
-              : 'Time to dust off your bags and start planning your next great adventure around the world.'}
+          <p className="text-xs sm:text-sm text-meta mb-6 leading-relaxed">
+            Time to dust off your bags and start planning your next getaway. Explore unique homes and experiences worldwide.
           </p>
           <Link
             to="/"
@@ -237,6 +273,8 @@ export default function Bookings() {
               booking.status === 'completed' ||
               (booking.status !== 'cancelled' && new Date(booking.checkOut) < new Date());
 
+            const isPendingPayment =
+              booking.status === 'pending';
             return (
               <div
                 key={booking.id || booking._id}
@@ -287,6 +325,17 @@ export default function Bookings() {
 
                   {/* Action Buttons Toolbar */}
                   <div className="pt-3 border-t border-surface-border flex flex-wrap items-center gap-2">
+                      {/* Pay Now button for pending payment */}
+                    {isPendingPayment && (
+                      <button
+                        type="button"
+                        onClick={() => setPayingBooking(booking)}
+                        className="px-4 py-1.5 rounded-full bg-airbnb hover:bg-airbnb-dark text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <CreditCard className="w-3.5 h-3.5" />
+                        <span>Pay Now</span>
+                      </button>
+                    )}
                     {/* View Receipt */}
                     <button
                       type="button"
@@ -333,6 +382,8 @@ export default function Bookings() {
         <BookingReceiptModal
           booking={selectedReceipt}
           onClose={() => setSelectedReceipt(null)}
+          onPay={(b) => setPayingBooking(b)}
+
         />
       )}
 
@@ -349,6 +400,15 @@ export default function Bookings() {
           booking={reviewingBooking}
           onClose={() => setReviewingBooking(null)}
           onSuccess={fetchBookings}
+        />
+      )}
+      {payingBooking && (
+        <PaymentModal
+          booking={payingBooking}
+          onClose={() => setPayingBooking(null)}
+          onSuccess={() => {
+            fetchBookings();
+          }}
         />
       )}
     </div>

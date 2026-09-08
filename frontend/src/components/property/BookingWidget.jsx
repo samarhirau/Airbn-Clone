@@ -172,7 +172,8 @@ const subtotalPrice = basePrice + cleaningFee + serviceFee;
         className: 'airbnb-toast',
       });
 
-      navigate('/bookings');
+      navigate('/bookings', { state: { payBooking: booking } });
+
     } catch (err) {
       const msg = getErrorMessage(err);
       setError(msg);
