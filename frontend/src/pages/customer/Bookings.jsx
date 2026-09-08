@@ -25,7 +25,7 @@ import WriteReviewModal from '../../components/booking/WriteReviewModal';
 import PaymentModal from '../../components/payment/PaymentModal';
 
 export default function Bookings() {
-
+  const location = useLocation();
   const { user, isAuthenticated } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -10,7 +10,7 @@ import { invalidateBookingDashboards } from '../cache/invalidation';
 import { validateCoupon, recordCouponUsage, type CouponValidationResult } from './coupon.service';
 import type { CreateBookingInput } from '../validators/booking.validator';
 
-const CONFIRMED: BookingStatus = 'confirmed';
+const PENDING: BookingStatus = 'pending';
 
 interface BookingComputation {
   propertyId: Types.ObjectId;
@@ -103,7 +103,7 @@ function bookingDoc(customerId: string, c: BookingComputation): Partial<BookingA
     coupon: c.coupon,
     couponCode: c.couponCode,
     totalPrice: c.totalPrice,
-    status: CONFIRMED,
+    status: PENDING,
   };
 }
 

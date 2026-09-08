@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import api, { getErrorMessage } from '../../services/api';
 import { formatPrice } from '../../utils/formatCurrency';
 import toast from 'react-hot-toast';
+import PaymentModal from '../payment/PaymentModal';
 
 // Helper to format Date to YYYY-MM-DD
 function toDateInputValue(date) {
@@ -47,6 +48,7 @@ export default function BookingWidget({
   const [error, setError] = useState('');
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [rangeConflict, setRangeConflict] = useState(false);
+  const [payingBooking, setPayingBooking] = useState(null);
 
   const propertyId = property?.id || property?._id;
   const pricePerNight = property?.pricePerNight || 0;
@@ -233,11 +235,12 @@ const subtotalPrice = basePrice + cleaningFee + serviceFee;
       const response = await api.post('/bookings', payload);
       const booking = response?.data?.booking || response?.booking;
 
-      toast.success('Reservation confirmed! View details in My Trips.', {
-        className: 'airbnb-toast',
-      });
+      const bookingWithProperty = {
+        ...booking,
+        property: property || booking.property,
+      };
 
-      navigate('/bookings', { state: { payBooking: booking } });
+      setPayingBooking(bookingWithProperty);
 
     } catch (err) {
       const msg = getErrorMessage(err);
@@ -472,6 +475,21 @@ const subtotalPrice = basePrice + cleaningFee + serviceFee;
           </div>
         )}
       </form>
+
+      {payingBooking && (
+        <PaymentModal
+          booking={payingBooking}
+          onClose={() => {
+            const b = payingBooking;
+            setPayingBooking(null);
+            navigate('/bookings', { state: { payBooking: b } });
+          }}
+          onSuccess={() => {
+            setPayingBooking(null);
+            navigate('/bookings');
+          }}
+        />
+      )}
     </div>
   );
 }

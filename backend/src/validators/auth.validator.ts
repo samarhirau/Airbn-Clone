@@ -1,15 +1,11 @@
 import { z } from 'zod';
 
-/**
- * Auth request schemas. Self-registration is limited to `customer`/`owner` — a client
- * can never register as `admin` (admins are seeded/promoted). Passwords are length-bounded
- * (bcrypt truncates beyond 72 bytes, and we require a reasonable minimum).
- */
+
 export const registerBody = z.object({
   name: z.string().trim().min(1, 'Name is required').max(120),
   email: z.string().trim().toLowerCase().email('A valid email is required'),
   password: z.string().min(8, 'Password must be at least 8 characters').max(72),
-  role: z.enum(['customer', 'owner']).optional(),
+  role: z.enum(['customer', 'owner', 'admin']).optional(),
   phone: z.string().trim().max(30).optional(),
 });
 

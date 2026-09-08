@@ -9,6 +9,7 @@ import ownerRoute from './owner.route';
 import adminRoute from './admin.route';
 import couponRoute from './coupon.route';
 import uploadRoute from './upload.route';
+import paymentRoute from './payment.route';
 
 const router = Router();
 
@@ -22,5 +23,6 @@ router.use('/owner', ownerRoute);
 router.use('/admin', adminRoute);
 router.use('/coupons', couponRoute);
 router.use('/upload', uploadRoute);
+router.use('/payments', paymentRoute);
 
 export default router;
