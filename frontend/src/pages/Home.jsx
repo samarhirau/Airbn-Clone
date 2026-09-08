@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useOutletContext } from 'react-router-dom';
 import CategoryBar from '../components/home/CategoryBar';
 import PropertyCard from '../components/home/PropertyCard';
+import PropertySectionRow from '../components/home/PropertySectionRow';
 import StorefrontMap from '../components/home/StorefrontMap';
 import api from '../services/api';
 import { SearchX, RefreshCw, Map as MapIcon, List } from 'lucide-react';
