@@ -1,12 +1,26 @@
 import { v2 as cloudinary } from 'cloudinary';
 import { logger } from './logger';
 
-if (process.env.CLOUDINARY_ENABLED === 'true') {
-  cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-  });
+const hasCredentials = Boolean(
+  (process.env.CLOUDINARY_CLOUD_NAME &&
+    process.env.CLOUDINARY_API_KEY &&
+    process.env.CLOUDINARY_API_SECRET) ||
+    process.env.CLOUDINARY_URL,
+);
+
+const isExplicitlyDisabled = process.env.CLOUDINARY_ENABLED === 'false';
+export const isCloudinaryEnabled = hasCredentials && !isExplicitlyDisabled;
+
+if (isCloudinaryEnabled) {
+  if (process.env.CLOUDINARY_URL) {
+    cloudinary.config({ cloudinary_url: process.env.CLOUDINARY_URL });
+  } else {
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+    });
+  }
   logger.info('Cloudinary configured successfully');
 } else {
   logger.warn('Cloudinary credentials not provided. Using fallback mock for uploads.');
@@ -22,7 +36,7 @@ export async function uploadBufferToCloudinary(
   buffer: Buffer,
   folder = 'stayhub/properties',
 ): Promise<UploadResult> {
-  if (process.env.CLOUDINARY_ENABLED !== 'true') {
+  if (!isCloudinaryEnabled) {
     const mockId = 'mock_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
     const mockUrl = `https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1200&q=80&mock=${mockId}`;
     return { url: mockUrl, publicId: mockId };
