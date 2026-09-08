@@ -1,7 +1,7 @@
 import { Schema, model, type Document, type Types } from 'mongoose';
 
 export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded';
-export type PaymentMethod = 'card' | 'upi' | 'wallet' | 'mock';
+export type PaymentMethod = 'card' | 'upi' | 'wallet' | 'mock' | 'razorpay' | 'netbanking';
 
 export interface PaymentAttrs {
   booking: Types.ObjectId;
@@ -12,6 +12,9 @@ export interface PaymentAttrs {
   paymentMethod: PaymentMethod;
   transactionId: string;
   gateway: string;
+  orderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
   paidAt?: Date;
   receiptUrl?: string;
   createdAt: Date;
@@ -36,11 +39,14 @@ const paymentSchema = new Schema<PaymentDocument>(
     paymentMethod: {
       type: String,
       required: true,
-      enum: ['card', 'upi', 'wallet', 'mock'],
+      enum: ['card', 'upi', 'wallet', 'mock', 'razorpay', 'netbanking'],
       default: 'card',
     },
     transactionId: { type: String, required: true, unique: true, index: true },
     gateway: { type: String, default: 'mock' },
+    orderId: { type: String, index: true },
+    razorpayPaymentId: { type: String, index: true },
+    razorpaySignature: { type: String },
     paidAt: { type: Date },
     receiptUrl: { type: String },
   },

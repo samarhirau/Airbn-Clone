@@ -6,6 +6,9 @@ import { createPaymentIntentBody, verifyPaymentBody } from '../validators/paymen
 
 const router = Router();
 
+// Public payment configuration (returns public key_id and test/live mode)
+router.get('/config', ctrl.getConfig);
+
 // All payment operations require authentication
 router.use(authenticate);
 
