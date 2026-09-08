@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useOutletContext } from 'react-router-dom';
 import CategoryBar from '../components/home/CategoryBar';
 import PropertyCard from '../components/home/PropertyCard';
+import StorefrontMap from '../components/home/StorefrontMap';
 import api from '../services/api';
-import { SearchX, RefreshCw } from 'lucide-react';
+import { SearchX, RefreshCw, Map as MapIcon, List, SlidersHorizontal } from 'lucide-react';
 
 export default function Home() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -13,10 +14,25 @@ export default function Home() {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'map'
 
   // Active Category State
   const activePropertyType = searchParams.get('propertyType') || '';
   const [activeCategory, setActiveCategory] = useState(activePropertyType || 'all');
+  const currentSort = searchParams.get('sort') || '';
+
+  // Compute number of active filters
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (searchParams.get('city')) count++;
+    if (searchParams.get('guests')) count++;
+    if (searchParams.get('bedrooms')) count++;
+    if (searchParams.get('minPrice')) count++;
+    if (searchParams.get('maxPrice')) count++;
+    if (searchParams.get('propertyType')) count++;
+    if (searchParams.get('amenities')) count++;
+    return count;
+  }, [searchParams]);
 
   // Fetch properties from Express backend based on URL filters
   useEffect(() => {
@@ -28,20 +44,25 @@ export default function Home() {
       const params = {};
       const city = searchParams.get('city');
       const guests = searchParams.get('guests');
+      const bedrooms = searchParams.get('bedrooms');
       const minPrice = searchParams.get('minPrice');
       const maxPrice = searchParams.get('maxPrice');
       const propertyType = searchParams.get('propertyType');
+      const amenities = searchParams.get('amenities');
+      const sort = searchParams.get('sort');
 
       if (city) params.city = city;
       if (guests) params.guests = Number(guests);
+      if (bedrooms) params.bedrooms = Number(bedrooms);
       if (minPrice) params.minPrice = Number(minPrice);
       if (maxPrice) params.maxPrice = Number(maxPrice);
       if (propertyType) params.propertyType = propertyType;
+      if (amenities) params.amenities = amenities;
+      if (sort) params.sort = sort;
 
       try {
         const response = await api.get('/properties', { params });
         if (isMounted) {
-          // Backend sends { success: true, data: [...], pagination: {...} }
           const list = response?.data || response || [];
           setProperties(Array.isArray(list) ? list : []);
         }
@@ -75,36 +96,49 @@ export default function Home() {
     setSearchParams(nextParams);
   };
 
+  const handleSelectSort = (sortValue) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (sortValue) {
+      nextParams.set('sort', sortValue);
+    } else {
+      nextParams.delete('sort');
+    }
+    setSearchParams(nextParams);
+  };
+
   const handleClearFilters = () => {
     setActiveCategory('all');
     setSearchParams(new URLSearchParams());
   };
 
   return (
-    <div className="min-h-screen bg-white pb-16">
+    <div className="min-h-screen bg-white pb-24 relative">
       {/* 1. Horizontal Categories Bar */}
       <CategoryBar
         activeCategory={activeCategory}
         onSelectCategory={handleSelectCategory}
         onOpenFilterModal={onOpenSearchModal}
+        activeFiltersCount={activeFiltersCount}
+        currentSort={currentSort}
+        onSelectSort={handleSelectSort}
       />
 
-      {/* 2. Property Feed Grid */}
+      {/* 2. Main Content (Grid View vs Map View) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         {/* Loading Skeletons */}
         {loading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="flex flex-col space-y-3 animate-pulse">
-                <div className="aspect-[20/19] w-full rounded-2xl bg-gray-200" />
+                <div className="aspect-[20/19] w-full rounded-2xl bg-neutral-200" />
                 <div className="space-y-2 pt-1">
                   <div className="flex justify-between items-center">
-                    <div className="h-4 bg-gray-200 rounded w-2/3" />
-                    <div className="h-4 bg-gray-200 rounded w-10" />
+                    <div className="h-4 bg-neutral-200 rounded w-2/3" />
+                    <div className="h-4 bg-neutral-200 rounded w-10" />
                   </div>
-                  <div className="h-3 bg-gray-100 rounded w-1/2" />
-                  <div className="h-3 bg-gray-100 rounded w-1/3" />
-                  <div className="h-4 bg-gray-200 rounded w-1/4 pt-1" />
+                  <div className="h-3 bg-neutral-100 rounded w-1/2" />
+                  <div className="h-3 bg-neutral-100 rounded w-1/3" />
+                  <div className="h-4 bg-neutral-200 rounded w-1/4 pt-1" />
                 </div>
               </div>
             ))}
@@ -134,13 +168,13 @@ export default function Home() {
             <div className="space-y-1">
               <h3 className="text-xl font-bold text-charcoal">No exact matches</h3>
               <p className="text-meta text-sm">
-                Try changing or clearing some of your filters or searching a different destination.
+                Try expanding your price range, adjusting bedroom count, or searching a different destination.
               </p>
             </div>
             <div className="pt-2">
               <button
                 onClick={handleClearFilters}
-                className="px-6 py-2.5 rounded-full border border-charcoal text-charcoal font-bold text-xs hover:bg-surface-card transition-colors shadow-sm"
+                className="px-6 py-2.5 rounded-full border border-charcoal text-charcoal font-bold text-xs hover:bg-surface-card transition-colors shadow-sm cursor-pointer"
               >
                 Clear all filters
               </button>
@@ -148,9 +182,9 @@ export default function Home() {
           </div>
         )}
 
-        {/* Real Property Cards Grid */}
-        {!loading && !error && properties.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {/* Render Grid View */}
+        {!loading && !error && properties.length > 0 && viewMode === 'grid' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 animate-in fade-in duration-150">
             {properties.map((property) => (
               <PropertyCard
                 key={property.id || property._id}
@@ -159,7 +193,40 @@ export default function Home() {
             ))}
           </div>
         )}
+
+        {/* Render Map View */}
+        {!loading && !error && properties.length > 0 && viewMode === 'map' && (
+          <div className="animate-in fade-in duration-200">
+            <StorefrontMap
+              properties={properties}
+              onCloseMap={() => setViewMode('grid')}
+            />
+          </div>
+        )}
       </div>
+
+      {/* 3. Airbnb Signature Floating Map/List Pill Button */}
+      {!loading && properties.length > 0 && (
+        <div className="fixed bottom-6 inset-x-0 flex justify-center pointer-events-none z-30">
+          <button
+            type="button"
+            onClick={() => setViewMode((m) => (m === 'grid' ? 'map' : 'grid'))}
+            className="pointer-events-auto bg-charcoal hover:bg-black text-white px-5 py-3.5 rounded-full shadow-2xl flex items-center gap-2 text-xs sm:text-sm font-extrabold hover:scale-105 active:scale-95 transition-all cursor-pointer border border-neutral-700 select-none"
+          >
+            {viewMode === 'grid' ? (
+              <>
+                <span>Show map</span>
+                <MapIcon className="w-4 h-4" />
+              </>
+            ) : (
+              <>
+                <span>Show list</span>
+                <List className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -12,18 +12,21 @@ export default function MainLayout() {
   const activeFilters = {
     city: searchParams.get('city') || '',
     guests: searchParams.get('guests') ? Number(searchParams.get('guests')) : undefined,
+    bedrooms: searchParams.get('bedrooms') ? Number(searchParams.get('bedrooms')) : undefined,
     minPrice: searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : undefined,
     maxPrice: searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : undefined,
     propertyType: searchParams.get('propertyType') || '',
+    amenities: searchParams.get('amenities') || '',
+    sort: searchParams.get('sort') || '',
   };
 
   const handleApplyFilters = (newFilters) => {
     const nextParams = new URLSearchParams();
-    if (newFilters.city) nextParams.set('city', newFilters.city);
-    if (newFilters.guests) nextParams.set('guests', newFilters.guests);
-    if (newFilters.minPrice) nextParams.set('minPrice', newFilters.minPrice);
-    if (newFilters.maxPrice) nextParams.set('maxPrice', newFilters.maxPrice);
-    if (newFilters.propertyType) nextParams.set('propertyType', newFilters.propertyType);
+     ['city', 'guests', 'bedrooms', 'minPrice', 'maxPrice', 'propertyType', 'amenities', 'sort'].forEach((key) => {
+      if (newFilters[key]) {
+        nextParams.set(key, newFilters[key]);
+      }
+    });
     setSearchParams(nextParams);
   };
 
@@ -45,7 +48,8 @@ export default function MainLayout() {
 
       {/* 2. Main Page Content (e.g. CategoryBar + Property Feed) */}
       <main className="flex-1">
-        <Outlet context={{ onOpenSearchModal: () => setIsSearchModalOpen(true) }} />
+        <Outlet context={{ onOpenSearchModal: () => setIsSearchModalOpen(true), activeFilters }} />
+
       </main>
 
       {/* 3. Airbnb Footer */}
