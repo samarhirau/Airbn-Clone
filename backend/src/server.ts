@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { createApp } from './app.js';
 import { connectDatabase, disconnectDatabase, ensureIndexes } from './config/db.js';
 import type { Server } from 'node:http';

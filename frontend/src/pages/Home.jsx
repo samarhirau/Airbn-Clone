@@ -51,6 +51,7 @@ export default function Home() {
       const amenities = searchParams.get('amenities');
       const sort = searchParams.get('sort');
 
+      params.limit = 40;
       if (city) params.city = city;
       if (guests) params.guests = Number(guests);
       if (bedrooms) params.bedrooms = Number(bedrooms);
@@ -134,20 +135,34 @@ export default function Home() {
     const goaListings = properties.filter(
       (p) =>
         p.location?.city?.toLowerCase() === 'goa' ||
-        p.title?.toLowerCase().includes('goa') ||
-        p.propertyType === 'villa'
+        p.title?.toLowerCase().includes('goa')
     );
 
-    const metroListings = properties.filter(
+    const mumbaiListings = properties.filter(
       (p) =>
-        ['mumbai', 'barcelona', 'madrid'].includes(p.location?.city?.toLowerCase()) ||
-        ['condo', 'apartment', 'loft'].includes(p.propertyType)
+        p.location?.city?.toLowerCase() === 'mumbai' ||
+        p.title?.toLowerCase().includes('mumbai')
     );
 
-    const scenicListings = properties.filter(
+    const puneListings = properties.filter(
       (p) =>
-        ['pune', 'guarda', 'cascais', 'lisbon'].includes(p.location?.city?.toLowerCase()) ||
-        ['cabin', 'cottage', 'villa'].includes(p.propertyType)
+        p.location?.city?.toLowerCase() === 'pune' ||
+        p.title?.toLowerCase().includes('pune') ||
+        p.location?.area?.toLowerCase().includes('lonavala') ||
+        p.location?.area?.toLowerCase().includes('khandala')
+    );
+
+    const mountainListings = properties.filter(
+      (p) =>
+        ['manali', 'guarda'].includes(p.location?.city?.toLowerCase()) ||
+        p.propertyType === 'cabin'
+    );
+
+    const heritageListings = properties.filter(
+      (p) =>
+        ['udaipur', 'jaipur', 'alleppey'].includes(p.location?.city?.toLowerCase()) ||
+        p.title?.toLowerCase().includes('heritage') ||
+        p.title?.toLowerCase().includes('haveli')
     );
 
     const sections = [];
@@ -156,7 +171,7 @@ export default function Home() {
       sections.push({
         id: 'goa',
         title: 'Popular homes in Goa',
-        subtitle: 'Coastal villas & beachside stays',
+        subtitle: 'Coastal luxury villas & beachside stays',
         items: goaListings,
         onViewAll: () => {
           const next = new URLSearchParams(searchParams);
@@ -166,29 +181,57 @@ export default function Home() {
       });
     }
 
-    if (metroListings.length > 0) {
+    if (mumbaiListings.length > 0) {
       sections.push({
-        id: 'mumbai-metro',
-        title: 'Available in Mumbai & top cities this weekend',
-        subtitle: 'High-speed WiFi & skyline balconies',
-        items: metroListings,
+        id: 'mumbai',
+        title: 'Available in Mumbai this weekend',
+        subtitle: 'Sea-facing skyline suites & luxury apartments',
+        items: mumbaiListings,
         onViewAll: () => {
           const next = new URLSearchParams(searchParams);
-          next.set('propertyType', 'condo');
+          next.set('city', 'Mumbai');
           setSearchParams(next);
         },
       });
     }
 
-    if (scenicListings.length > 0) {
+    if (puneListings.length > 0) {
       sections.push({
-        id: 'pune-scenic',
+        id: 'pune',
         title: 'Homes in Pune & scenic getaways',
-        subtitle: 'Nature retreats, cabins & valley views',
-        items: scenicListings,
+        subtitle: 'Lonavala & Khandala hill retreats & glasshouse villas',
+        items: puneListings,
+        onViewAll: () => {
+          const next = new URLSearchParams(searchParams);
+          next.set('city', 'Pune');
+          setSearchParams(next);
+        },
+      });
+    }
+
+    if (mountainListings.length > 0) {
+      sections.push({
+        id: 'mountains',
+        title: 'Mountain cabins & alpine retreats',
+        subtitle: 'Handcrafted timber chalets with snow peak views',
+        items: mountainListings,
         onViewAll: () => {
           const next = new URLSearchParams(searchParams);
           next.set('propertyType', 'cabin');
+          setSearchParams(next);
+        },
+      });
+    }
+
+    if (heritageListings.length > 0) {
+      sections.push({
+        id: 'heritage',
+        title: 'Heritage havelis & lakefront villas',
+        subtitle: 'Royal Rajasthan havelis & serene Kerala backwaters',
+        items: heritageListings,
+        onViewAll: () => {
+          const next = new URLSearchParams(searchParams);
+          next.set('propertyType', 'villa');
           setSearchParams(next);
         },
       });
