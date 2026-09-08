@@ -14,12 +14,30 @@ export function initRedis(): Redis | null {
   }
   if (client) return client;
 
-  client = new Redis(process.env.REDIS_URL, {
+  const redisUrl = process.env.REDIS_URL;
+  const isTls =
+    redisUrl.startsWith('rediss://') ||
+    redisUrl.includes('upstash.io') ||
+    redisUrl.includes(':6380');
+
+  client = new Redis(redisUrl, {
     lazyConnect: false,
     maxRetriesPerRequest: 2,
-    enableOfflineQueue: false,
-    retryStrategy: (times) => Math.min(times * 200, 2000),
-    reconnectOnError: () => true,
+    enableOfflineQueue: true,
+    keepAlive: 10000,
+    family: 4,
+    ...(isTls ? { tls: { rejectUnauthorized: false } } : {}),
+    retryStrategy: (times) => {
+      if (times > 10) {
+        logger.warn('Redis reconnect attempts exhausted (10) — continuing without Redis cache');
+        return null;
+      }
+      return Math.min(times * 300, 3000);
+    },
+    reconnectOnError: (err) => {
+      const targetErrors = ['READONLY', 'ECONNRESET', 'ETIMEDOUT'];
+      return targetErrors.some((target) => err.message.includes(target));
+    },
   });
 
   client.on('ready', () => {
