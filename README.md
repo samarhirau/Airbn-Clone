@@ -6,7 +6,7 @@ A full-stack vacation rental and property management platform built with the **M
 
 ## 🌐 Live Deployment Links
 
-- **Live Frontend (Vercel):** [https://airbn-clone.vercel.app](https://airbn-clone.vercel.app) *(or your Vercel deployment URL)*
+- **Live Frontend (Vercel):** [https://frontend-azure-three-72.vercel.app/]
 - **Live Backend API (Render):** [https://airbn-clone-y3zo.onrender.com](https://airbn-clone-y3zo.onrender.com)
 - **API Health Check:** [https://airbn-clone-y3zo.onrender.com/health](https://airbn-clone-y3zo.onrender.com/health)
 - **Interactive Swagger Docs:** [https://airbn-clone-y3zo.onrender.com/api/docs](https://airbn-clone-y3zo.onrender.com/api/docs)
