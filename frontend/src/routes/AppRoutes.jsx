@@ -16,6 +16,7 @@ import Wishlists from '../pages/customer/Wishlists';
 import Profile from '../pages/customer/Profile';
 import Coupons from '../pages/host/Coupons';
 import AdminSystemHealth from '../pages/admin/AdminSystemHealth';
+import MyReviews from '../pages/customer/MyReviews';
 
 import NotFound from '../pages/NotFound';
 import Login from '../pages/auth/Login';
@@ -33,7 +34,7 @@ export default function AppRoutes() {
           <Route path="bookings" element={<Bookings />} />
           <Route path="wishlists" element={<Wishlists />} />
           <Route path="profile" element={<Profile />} />
-
+          <Route path="reviews" element={<MyReviews />} />
                  {/* Host / Owner Suite */}
           <Route path="host/dashboard" element={<HostDashboard />} />
           <Route path="host/properties" element={<HostProperties />} />

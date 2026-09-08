@@ -11,13 +11,15 @@ import {
   RefreshCw,
   ExternalLink,
   MapPin,
-  Tag
+  Tag,
+  Download,
 } from 'lucide-react';
 import api, { getErrorMessage } from '../../services/api';
 import { formatPrice } from '../../utils/formatCurrency';
 import BookingStatusBadge from '../../components/booking/BookingStatusBadge';
 import AdminSubNav from '../../components/admin/AdminSubNav';
 import toast from 'react-hot-toast';
+import { exportToCSV } from '../../utils/csvExport';
 
 export default function AdminBookings() {
   const [bookings, setBookings] = useState([]);
@@ -72,6 +74,43 @@ export default function AdminBookings() {
     });
   };
 
+  
+  const handleExportCSV = () => {
+    if (bookings.length === 0) {
+      toast.error('No reservations to export');
+      return;
+    }
+
+    const columns = [
+      { key: 'id', label: 'Booking ID' },
+      { key: 'guestName', label: 'Customer Name' },
+      { key: 'guestEmail', label: 'Customer Email' },
+      { key: 'propertyTitle', label: 'Listing' },
+      { key: 'city', label: 'Location' },
+      { key: 'checkIn', label: 'Check-In' },
+      { key: 'checkOut', label: 'Check-Out' },
+      { key: 'guestsCount', label: 'Guests' },
+      { key: 'totalPrice', label: 'Total Volume (USD)' },
+      { key: 'status', label: 'Status' },
+    ];
+
+    const data = bookings.map((b) => ({
+      id: b.id || b._id,
+      guestName: b.customer?.name || 'N/A',
+      guestEmail: b.customer?.email || 'N/A',
+      propertyTitle: b.property?.title || 'N/A',
+      city: b.property?.location?.city || 'N/A',
+      checkIn: b.checkIn ? new Date(b.checkIn).toISOString().split('T')[0] : '',
+      checkOut: b.checkOut ? new Date(b.checkOut).toISOString().split('T')[0] : '',
+      guestsCount: b.guestsCount || 1,
+      totalPrice: b.totalPrice || 0,
+      status: (b.status || '').toUpperCase(),
+    }));
+
+    exportToCSV('stayhub-admin-global-bookings', data, columns);
+    toast.success('Global reservation audit exported successfully!');
+  };
+
   return (
     <div className="min-h-screen bg-surface-card/40 pb-16">
       <AdminSubNav />
@@ -89,6 +128,15 @@ export default function AdminBookings() {
           </div>
 
           <div className="flex items-center gap-2">
+                  <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white border border-surface-border rounded-xl text-xs font-bold text-charcoal shadow-xs hover:bg-neutral-50 transition-colors cursor-pointer"
+              title="Download CSV Audit"
+            >
+              <Download className="w-3.5 h-3.5 text-meta" />
+              <span>Export CSV</span>
+            </button>
+
             <button
               onClick={fetchBookings}
               disabled={loading}

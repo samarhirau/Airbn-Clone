@@ -1,6 +1,8 @@
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { WishlistProvider } from './context/WishlistContext';
+import { CurrencyProvider } from './context/CurrencyContext';
+
 import AppRoutes from './routes/AppRoutes';
 
 export default function App() {
@@ -8,6 +10,7 @@ export default function App() {
     
     <AuthProvider>
       <WishlistProvider>
+        <CurrencyProvider>
 
       <Toaster
         position="top-center"
@@ -42,6 +45,7 @@ export default function App() {
       />
 
       <AppRoutes />
+        </CurrencyProvider>
       </WishlistProvider>
     </AuthProvider>
   );

@@ -293,15 +293,28 @@ export default function BookingReceiptModal({ booking, onClose, onPay }) {
               Verified Transaction
             </span>
           )}
+          
+          <div className="flex items-center gap-2.5 ml-auto">
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="px-4 py-2 bg-white border border-surface-border hover:bg-neutral-100 text-charcoal font-semibold text-xs rounded-full transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Print Itinerary</span>
+            </button>
+
 
           <button
             type="button"
             onClick={onClose}
-                        className="px-6 py-2.5 bg-charcoal hover:bg-neutral-800 text-white font-semibold text-sm rounded-full transition-all cursor-pointer shadow-xs ml-auto"
+            className="px-6 py-2 bg-charcoal hover:bg-neutral-800 text-white font-semibold text-xs rounded-full transition-all cursor-pointer shadow-xs"
+            
 
           >
             Close
           </button>
+           </div>
         </div>
       </div>
     </div>

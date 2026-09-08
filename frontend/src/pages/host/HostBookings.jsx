@@ -9,10 +9,13 @@ import {
   ExternalLink,
   DollarSign,
   Users,
+  Download,
 } from 'lucide-react';
 import api, { getErrorMessage } from '../../services/api';
 import { formatPrice } from '../../utils/formatCurrency';
 import BookingStatusBadge from '../../components/booking/BookingStatusBadge';
+import { exportToCSV } from '../../utils/csvExport';
+import toast from 'react-hot-toast';
 
 export default function HostBookings() {
   const [bookings, setBookings] = useState([]);
@@ -59,6 +62,42 @@ export default function HostBookings() {
     });
   }, [bookings, statusFilter, searchQuery]);
 
+  const handleExportCSV = () => {
+    if (filteredBookings.length === 0) {
+      toast.error('No reservations to export');
+      return;
+    }
+
+    const columns = [
+      { key: 'id', label: 'Booking ID' },
+      { key: 'guestName', label: 'Guest Name' },
+      { key: 'guestEmail', label: 'Guest Email' },
+      { key: 'propertyTitle', label: 'Listing Title' },
+      { key: 'city', label: 'City' },
+      { key: 'checkIn', label: 'Check-In' },
+      { key: 'checkOut', label: 'Check-Out' },
+      { key: 'guestsCount', label: 'Guests' },
+      { key: 'totalPrice', label: 'Total Price (USD)' },
+      { key: 'status', label: 'Status' },
+    ];
+
+    const data = filteredBookings.map((b) => ({
+      id: b.id || b._id,
+      guestName: b.customer?.name || 'N/A',
+      guestEmail: b.customer?.email || 'N/A',
+      propertyTitle: b.property?.title || 'N/A',
+      city: b.property?.location?.city || 'N/A',
+      checkIn: b.checkIn ? new Date(b.checkIn).toISOString().split('T')[0] : '',
+      checkOut: b.checkOut ? new Date(b.checkOut).toISOString().split('T')[0] : '',
+      guestsCount: b.guestsCount || 1,
+      totalPrice: b.totalPrice || 0,
+      status: (b.status || '').toUpperCase(),
+    }));
+
+    exportToCSV('stayhub-host-reservations', data, columns);
+    toast.success('Reservations ledger exported successfully!');
+  };
+  
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
       {/* 1. Header & Actions */}
@@ -72,6 +111,18 @@ export default function HostBookings() {
           </p>
         </div>
 
+        <div className="flex items-center gap-3">
+          {/* Export CSV Button */}
+          <button
+            onClick={handleExportCSV}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-surface-border bg-white hover:bg-neutral-50 text-charcoal font-bold text-xs rounded-full shadow-xs transition-colors shrink-0 cursor-pointer"
+            title="Download CSV report"
+          >
+            <Download className="w-3.5 h-3.5 text-meta" />
+            <span>Export CSV</span>
+          </button>
+
+
         {/* Search Bar */}
         <div className="relative max-w-xs w-full">
           <Search className="w-4 h-4 text-meta absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -82,6 +133,7 @@ export default function HostBookings() {
             placeholder="Search guest or listing..."
             className="w-full pl-10 pr-4 py-2 text-sm font-medium border border-surface-border rounded-full outline-none focus:border-charcoal bg-surface-card/40 transition-colors"
           />
+          </div>
         </div>
       </div>
 

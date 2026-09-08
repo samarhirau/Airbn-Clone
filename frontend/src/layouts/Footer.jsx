@@ -1,7 +1,9 @@
 import { Globe, Heart, ExternalLink, Sparkles } from 'lucide-react';
+import { useCurrency } from '../hooks/useCurrency';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+  const { openCurrencyModal, currencyConfig } = useCurrency();
 
   const footerSections = [
     {
@@ -112,13 +114,19 @@ export default function Footer() {
           </div>
 
           <div className="flex items-center gap-6 font-semibold text-charcoal">
-            <button className="flex items-center gap-2 hover:underline">
+             <button
+              onClick={openCurrencyModal}
+              className="flex items-center gap-2 hover:underline cursor-pointer"
+            >
               <Globe className="w-4 h-4 text-charcoal" />
               <span>English (US)</span>
             </button>
 
-            <button className="hover:underline">
-              <span>$ USD</span>
+          <button
+              onClick={openCurrencyModal}
+              className="hover:underline cursor-pointer"
+            >
+              <span>{currencyConfig.symbol} {currencyConfig.code}</span>
             </button>
           </div>
         </div>

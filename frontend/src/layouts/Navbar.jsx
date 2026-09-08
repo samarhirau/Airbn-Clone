@@ -15,9 +15,11 @@ import {
   CalendarDays,
   Settings,
   Tag,
-  Activity
+  Activity,
+  Star
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useCurrency } from '../hooks/useCurrency';
 import RoleBadge from '../components/common/RoleBadge';
 import NotificationDrawer from '../components/notifications/NotificationDrawer';
 
@@ -26,6 +28,7 @@ export default function Navbar({ onOpenSearch, activeFilters = {} }) {
   const menuRef = useRef(null);
   const navigate = useNavigate();
   const { user, isAuthenticated, role, logout } = useAuth();
+  const { openCurrencyModal, currencyConfig } = useCurrency();
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -125,10 +128,12 @@ export default function Navbar({ onOpenSearch, activeFilters = {} }) {
             )}
 
             <button
-              className="p-2.5 text-charcoal hover:bg-surface-card rounded-full transition-colors hidden lg:block"
-              aria-label="Language and currency"
+              onClick={openCurrencyModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-charcoal hover:bg-surface-card rounded-full transition-colors hidden lg:flex border border-transparent hover:border-surface-border text-xs font-bold cursor-pointer"
+              aria-label="Choose currency"
             >
-              <Globe className="w-4 h-4" />
+              <Globe className="w-4 h-4 text-charcoal" />
+              <span>{currencyConfig.symbol} {currencyConfig.code}</span>
             </button>
 
             {/* Notification Center */}
@@ -211,6 +216,14 @@ export default function Navbar({ onOpenSearch, activeFilters = {} }) {
                             >
                               <Heart className="w-4 h-4 text-meta" />
                               <span>Wishlists</span>
+                            </Link>
+                              <Link
+                              to="/reviews"
+                              onClick={() => setMenuOpen(false)}
+                              className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-surface-card text-charcoal transition-colors"
+                            >
+                              <Star className="w-4 h-4 text-meta" />
+                              <span>Reviews by You</span>
                             </Link>
                           </>
                         )}
@@ -339,10 +352,25 @@ export default function Navbar({ onOpenSearch, activeFilters = {} }) {
                       </Link>
                     )}
 
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        openCurrencyModal();
+                      }}
+                      className="w-full text-left flex items-center justify-between px-4 py-2.5 hover:bg-surface-card text-charcoal text-xs font-semibold transition-colors cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <Globe className="w-4 h-4 text-meta" />
+                        <span>Currency</span>
+                      </span>
+                      <span className="font-bold text-meta">{currencyConfig.code} ({currencyConfig.symbol})</span>
+                    </button>
+
                     <a
-                      href="#help"
-                      onClick={() => setMenuOpen(false)}
-                      className="block px-4 py-2.5 hover:bg-surface-card text-meta transition-colors"
+                      href="https://github.com/samar-hirau"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block px-4 py-2.5 hover:bg-surface-card text-charcoal transition-colors"
                     >
                       Help Center
                     </a>
