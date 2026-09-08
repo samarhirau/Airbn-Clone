@@ -13,6 +13,7 @@ import {
   ArrowRight,
   CreditCard,
   CheckCircle2,
+  MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import api, { getErrorMessage } from '../../services/api';
@@ -345,6 +346,15 @@ export default function Bookings() {
                       <FileText className="w-3.5 h-3.5" />
                       <span>Receipt</span>
                     </button>
+
+                       {/* Direct Host Chat */}
+                    <Link
+                      to="/messages"
+                      className="px-3.5 py-1.5 rounded-full border border-surface-border hover:border-charcoal text-xs font-semibold text-charcoal transition-colors flex items-center gap-1.5 cursor-pointer bg-white"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5 text-meta" />
+                      <span>Message Host</span>
+                    </Link>
 
                     {/* Leave Review for completed stays */}
                     {isCompleted && (

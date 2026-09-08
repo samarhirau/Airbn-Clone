@@ -216,6 +216,15 @@ export default function PropertyDetails() {
                 {property.bedrooms || 1} beds · {property.bathrooms || 1} baths
               </p>
             </div>
+            
+            <div className="flex items-center gap-3">
+              <Link
+                to={`/messages?propertyId=${id}`}
+                className="inline-flex items-center gap-1.5 px-4 py-2 border border-surface-border rounded-full hover:border-charcoal text-xs font-bold text-charcoal hover:bg-neutral-50 transition-colors shadow-2xs cursor-pointer"
+              >
+                <MessageCircle className="w-3.5 h-3.5 text-meta" />
+                <span>Contact Host</span>
+              </Link>
 
             {/* Host Avatar */}
             {hostAvatar ? (
@@ -230,6 +239,8 @@ export default function PropertyDetails() {
               </div>
             )}
           </div>
+          </div>
+
 
           {/* Key Stay Highlights */}
           <div className="py-8 space-y-6">

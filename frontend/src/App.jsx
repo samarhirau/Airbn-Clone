@@ -2,12 +2,13 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { CurrencyProvider } from './context/CurrencyContext';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 import AppRoutes from './routes/AppRoutes';
 
 export default function App() {
   return (
-    
+    <ErrorBoundary>
     <AuthProvider>
       <WishlistProvider>
         <CurrencyProvider>
@@ -48,5 +49,6 @@ export default function App() {
         </CurrencyProvider>
       </WishlistProvider>
     </AuthProvider>
+    </ErrorBoundary>
   );
 }

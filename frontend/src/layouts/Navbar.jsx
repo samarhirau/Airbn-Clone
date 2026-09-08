@@ -16,7 +16,8 @@ import {
   Settings,
   Tag,
   Activity,
-  Star
+  Star,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useCurrency } from '../hooks/useCurrency';
@@ -136,6 +137,19 @@ export default function Navbar({ onOpenSearch, activeFilters = {} }) {
               <span>{currencyConfig.symbol} {currencyConfig.code}</span>
             </button>
 
+            
+            {/* Direct Messages Icon */}
+            {isAuthenticated && (
+              <Link
+                to="/messages"
+                className="relative p-2.5 text-charcoal hover:bg-surface-card rounded-full transition-colors hidden sm:block"
+                aria-label="Messages"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-airbnb" />
+              </Link>
+            )}
+
             {/* Notification Center */}
             <NotificationDrawer />
 
@@ -225,6 +239,15 @@ export default function Navbar({ onOpenSearch, activeFilters = {} }) {
                               <Star className="w-4 h-4 text-meta" />
                               <span>Reviews by You</span>
                             </Link>
+
+                               <Link
+                              to="/messages"
+                              onClick={() => setMenuOpen(false)}
+                              className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-surface-card text-charcoal transition-colors"
+                            >
+                              <MessageSquare className="w-4 h-4 text-meta" />
+                              <span>Messages & Inbox</span>
+                            </Link>
                           </>
                         )}
 
@@ -238,6 +261,14 @@ export default function Navbar({ onOpenSearch, activeFilters = {} }) {
                             >
                               <LayoutDashboard className="w-4 h-4 text-airbnb" />
                               <span>Host Dashboard</span>
+                            </Link>
+                              <Link
+                              to="/messages"
+                              onClick={() => setMenuOpen(false)}
+                              className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-surface-card text-charcoal transition-colors"
+                            >
+                              <MessageSquare className="w-4 h-4 text-meta" />
+                              <span>Guest Messages</span>
                             </Link>
                             <Link
                               to="/host/properties"
