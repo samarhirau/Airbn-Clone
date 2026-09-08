@@ -1,11 +1,14 @@
 import { Toaster } from 'react-hot-toast';
-import AppRoutes from './routes/AppRoutes';
 import { AuthProvider } from './context/AuthContext';
+import { WishlistProvider } from './context/WishlistContext';
+import AppRoutes from './routes/AppRoutes';
 
 export default function App() {
   return (
     
     <AuthProvider>
+      <WishlistProvider>
+
       <Toaster
         position="top-center"
         reverseOrder={false}
@@ -39,6 +42,7 @@ export default function App() {
       />
 
       <AppRoutes />
+      </WishlistProvider>
     </AuthProvider>
   );
 }

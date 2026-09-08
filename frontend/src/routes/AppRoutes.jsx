@@ -1,9 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
 import Home from '../pages/Home';
-import NotFound from '../pages/NotFound';
-import Login from '../pages/auth/Login';
-import Register from '../pages/auth/Register';
+
 import PropertyDetails from '../pages/PropertyDetails';
 import Bookings from '../pages/customer/Bookings';
 import HostDashboard from '../pages/host/HostDashboard';
@@ -14,6 +12,12 @@ import AdminDashboard from '../pages/admin/AdminDashboard';
 import AdminUsers from '../pages/admin/AdminUsers';
 import AdminProperties from '../pages/admin/AdminProperties';
 import AdminBookings from '../pages/admin/AdminBookings';
+import Wishlists from '../pages/customer/Wishlists';
+import Profile from '../pages/customer/Profile';
+
+import NotFound from '../pages/NotFound';
+import Login from '../pages/auth/Login';
+import Register from '../pages/auth/Register';
 
 export default function AppRoutes() {
   return (
@@ -25,6 +29,9 @@ export default function AppRoutes() {
           <Route path="register" element={<Register />} />
           <Route path="properties/:id" element={<PropertyDetails />} />
           <Route path="bookings" element={<Bookings />} />
+          <Route path="wishlists" element={<Wishlists />} />
+          <Route path="profile" element={<Profile />} />
+
                  {/* Host / Owner Suite */}
           <Route path="host/dashboard" element={<HostDashboard />} />
           <Route path="host/properties" element={<HostProperties />} />

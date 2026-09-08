@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { Star, Heart } from 'lucide-react';
-import toast from 'react-hot-toast';
 import { formatPrice } from '../../utils/formatCurrency';
 import { Link } from 'react-router-dom';
+import { useWishlist } from '../../hooks/useWishlist';
 
 export default function PropertyCard({ property }) {
-  const [isLiked, setIsLiked] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const { isWishlisted, toggleWishlist } = useWishlist();
+
+  const propertyId = property?._id || property?.id;
+  const isLiked = isWishlisted(propertyId);
 
   const fallbackImage = 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80';
   const imageUrl = property?.images?.[0]?.url || fallbackImage;
@@ -20,25 +23,11 @@ export default function PropertyCard({ property }) {
     ? `${property.location.area}, ${property.location.country || ''}`
     : property?.description?.slice(0, 32) || 'Scenic view';
 
-  const handleHeartClick = (e) => {
+  const handleHeartClick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsLiked(!isLiked);
-    if (!isLiked) {
-      toast.success('Saved to your wishlist', {
-        icon: '❤️',
-        className: 'airbnb-toast',
-      });
-    } else {
-      toast('Removed from wishlist', {
-        icon: '💔',
-        className: 'airbnb-toast',
-      });
-    }
+       await toggleWishlist(propertyId);
   };
-  
-  const propertyId = property?.id || property?._id;
-
 
   return (
     <Link to={`/properties/${propertyId}`} className="group cursor-pointer flex flex-col space-y-2.5 select-none block">
