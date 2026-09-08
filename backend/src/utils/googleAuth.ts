@@ -28,9 +28,15 @@ export async function verifyGoogleToken(idToken: string): Promise<GooglePayload>
   }
 
   try {
+    const allowedClientIds = [
+      process.env.GOOGLE_CLIENT_ID?.trim(),
+      '550886674519-l78dnnjsinoipd7ubk8sc00k9lcimrmd.apps.googleusercontent.com',
+      '880222969757-nsasnir5u393ud807e4s218ruhv7jsag.apps.googleusercontent.com',
+    ].filter(Boolean) as string[];
+
     const ticket = await client.verifyIdToken({
       idToken,
-      audience: process.env.GOOGLE_CLIENT_ID || undefined,
+      audience: allowedClientIds.length > 0 ? allowedClientIds : undefined,
     });
     const payload = ticket.getPayload();
     if (!payload || !payload.email) {
