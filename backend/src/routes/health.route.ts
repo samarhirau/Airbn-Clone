@@ -14,6 +14,8 @@ const DB_STATES: Record<number, string> = {
 
 router.get('/', (_req, res) => {
   const dbReady = mongoose.connection.readyState === 1;
+  const isRedisEnabled = process.env.REDIS_ENABLED === 'true' || process.env.redisEnabled === 'true';
+
   sendSuccess(res, {
     status: dbReady ? 'ok' : 'degraded',
     uptime: Math.round(process.uptime()),
@@ -21,7 +23,7 @@ router.get('/', (_req, res) => {
     environment: process.env.NODE_ENV,
     dependencies: {
       mongodb: DB_STATES[mongoose.connection.readyState] ?? 'unknown',
-      redis: process.env.redisEnabled ? (isRedisReady() ? 'connected' : 'unavailable') : 'disabled',
+      redis: isRedisEnabled ? (isRedisReady() ? 'connected' : 'unavailable') : 'disabled',
     },
   });
 });

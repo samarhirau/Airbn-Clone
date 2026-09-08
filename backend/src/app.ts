@@ -14,13 +14,6 @@ import { notFound } from './middleware/notFound';
 
 // Routes
 import healthRoute from './routes/health.route';
-import authRoute from './routes/auth.route';
-import propertyRoute from './routes/property.route';
-import bookingRoute from './routes/booking.route';
-import reviewRoute from './routes/review.route';
-import wishlistRoute from './routes/wishlist.route';
-import ownerRoute from './routes/owner.route';
-import adminRoute from './routes/admin.route';
 import routes from './routes';
 
 export function createApp(): Express {
@@ -30,46 +23,71 @@ export function createApp(): Express {
   app.disable('x-powered-by');
 
   app.use(requestId);
-  // Structured HTTP request logging with shared logger
+  // Structured HTTP request logging with shared logger (suppress noisy health/favicon pings)
   app.use(
     pinoHttp({
       logger,
-      autoLogging: { ignore: (req) => req.url === '/api/health' },
+      autoLogging: {
+        ignore: (req) =>
+          req.url === '/api/health' ||
+          req.url === '/health' ||
+          req.url === '/favicon.ico',
+      },
     }),
   );
 
   app.use(helmet());
-  
-  
+
+  const allowedOrigins = process.env.CLIENT_URL
+    ? process.env.CLIENT_URL.split(',').map((origin) => origin.trim())
+    : ['http://localhost:5173'];
 
   app.use(
     cors({
-      origin: process.env.CLIENT_URL || 'http://localhost:5173',
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+          return callback(null, origin || true);
+        }
+        if (process.env.NODE_ENV !== 'production' && origin.startsWith('http://localhost:')) {
+          return callback(null, origin);
+        }
+        return callback(null, false);
+      },
       credentials: true,
     })
   );
-  
+
   // Compression
   app.use(compression());
 
-   app.use(express.json({ limit: '1mb' }));
+  app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: false, limit: '1mb' }));
   app.use(cookieParser());
 
   // Swagger Documentation
   mountSwagger(app);
 
-   // Distributed rate limiting across all API routes
+  // Favicon handler to avoid 404 error logs on browser visits
+  app.get('/favicon.ico', (_req, res) => {
+    res.status(204).end();
+  });
+
+  // Root endpoint - deployment status & metadata
+  app.get('/', (_req, res) => {
+    res.status(200).json({
+      success: true,
+      message: 'StayHub API is running',
+      version: '1.0.0',
+      docs: '/api/docs',
+      health: '/health',
+    });
+  });
+
+  // Health check endpoint at root level for Render / load balancers
+  app.use('/health', healthRoute);
+
+  // Distributed rate limiting across all API routes (/api/health, /api/auth, /api/properties, etc.)
   app.use('/api', apiLimiter, routes);
-  // Health Check 
-  app.use('/api/health', healthRoute);  
-  app.use('/api/auth', authRoute);
-  app.use('/api/properties', propertyRoute);
-  app.use('/api/bookings', bookingRoute);
-  app.use('/api/reviews', reviewRoute);
-  app.use('/api/wishlist', wishlistRoute);
-  app.use('/api/owner', ownerRoute);
-  app.use('/api/admin', adminRoute);
 
   // 404 and centralized error handling (must be last)
   app.use(notFound);
