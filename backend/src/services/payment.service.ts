@@ -63,8 +63,8 @@ export async function createPaymentIntent(
 
   const razorpay = getRazorpayClient();
 
-  // If Razorpay is configured, create an official Razorpay order
-  if (razorpay) {
+  // If Razorpay is configured and razorpay payment method is selected, create an official Razorpay order
+  if (razorpay && (paymentMethod === 'razorpay' || paymentMethod === 'netbanking')) {
     try {
       const isUsd = currency === 'USD';
       const chargeAmount = isUsd
