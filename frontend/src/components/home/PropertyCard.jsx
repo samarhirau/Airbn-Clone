@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Star, Heart } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatPrice } from '../../utils/formatCurrency';
+import { Link } from 'react-router-dom';
 
 export default function PropertyCard({ property }) {
   const [isLiked, setIsLiked] = useState(false);
@@ -35,9 +36,13 @@ export default function PropertyCard({ property }) {
       });
     }
   };
+  
+  const propertyId = property?.id || property?._id;
+
 
   return (
-    <div className="group cursor-pointer flex flex-col space-y-2.5 select-none">
+    <Link to={`/properties/${propertyId}`} className="group cursor-pointer flex flex-col space-y-2.5 select-none block">
+
       {/* 1. Rounded-2xl image container with subtle hover zoom */}
       <div className="relative aspect-[20/19] w-full overflow-hidden rounded-2xl bg-surface-card border border-surface-border/40">
         {!imageLoaded && (
@@ -104,6 +109,6 @@ export default function PropertyCard({ property }) {
           <span className="text-charcoal font-normal text-sm">night</span>
         </div>
       </div>
-    </div>
+      </Link>
   );
 }
