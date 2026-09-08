@@ -21,6 +21,7 @@ import PropertyAmenities from '../components/property/PropertyAmenities';
 import BookingWidget from '../components/property/BookingWidget';
 import PropertyReviews from '../components/property/PropertyReviews';
 import PropertyMap from '../components/property/PropertyMap';
+import PropertyCalendar from '../components/property/PropertyCalendar';
 
 import toast from 'react-hot-toast';
 
@@ -32,6 +33,11 @@ export default function PropertyDetails() {
   const [error, setError] = useState('');
   const [isSaved, setIsSaved] = useState(false);
   const [showFullDescription, setShowFullDescription] = useState(false);
+
+  
+  // Synchronized booking dates state
+  const [selectedCheckIn, setSelectedCheckIn] = useState('');
+  const [selectedCheckOut, setSelectedCheckOut] = useState('');
 
   // Fetch property details and reviews from backend
   useEffect(() => {
@@ -367,13 +373,31 @@ export default function PropertyDetails() {
             </button>
           </div>
 
+  {/* Date Availability Calendar */}
+          <PropertyCalendar
+            propertyId={property.id || property._id}
+            checkIn={selectedCheckIn}
+            checkOut={selectedCheckOut}
+            onSelectRange={(inDate, outDate) => {
+              setSelectedCheckIn(inDate);
+              setSelectedCheckOut(outDate);
+            }}
+          />
            {/* Neighborhood & Location Map */}
           <PropertyMap property={property} />
         </div>
 
         {/* Right Column: Sticky Booking Widget */}
         <div className="lg:col-span-1">
-          <BookingWidget property={property} />
+                    <BookingWidget
+            property={property}
+            checkIn={selectedCheckIn}
+            checkOut={selectedCheckOut}
+            onDatesChange={(inDate, outDate) => {
+              setSelectedCheckIn(inDate);
+              setSelectedCheckOut(outDate);
+            }}
+          />
         </div>
       </div>
     </div>

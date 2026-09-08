@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Star, ChevronDown, Loader2, Tag, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Star, ChevronDown, Loader2, Tag, CheckCircle2, AlertCircle, ShieldAlert} from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import api, { getErrorMessage } from '../../services/api';
 import { formatPrice } from '../../utils/formatCurrency';
@@ -14,7 +14,12 @@ function toDateInputValue(date) {
   return `${year}-${month}-${day}`;
 }
 
-export default function BookingWidget({ property }) {
+export default function BookingWidget({
+  property,
+  checkIn: externalCheckIn,
+  checkOut: externalCheckOut,
+  onDatesChange,
+}) {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
 
@@ -32,19 +37,32 @@ export default function BookingWidget({ property }) {
   }, []);
 
   const todayStr = useMemo(() => toDateInputValue(new Date()), []);
-  const [checkIn, setCheckIn] = useState(toDateInputValue(tomorrow));
-  const [checkOut, setCheckOut] = useState(toDateInputValue(defaultCheckOut));
+  const [checkIn, setCheckIn] = useState(externalCheckIn || toDateInputValue(tomorrow));
+  const [checkOut, setCheckOut] = useState(externalCheckOut || toDateInputValue(defaultCheckOut));
   const [guests, setGuests] = useState(1);
   const [couponCode, setCouponCode] = useState('');
   const [validatedCoupon, setValidatedCoupon] = useState(null);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [rangeConflict, setRangeConflict] = useState(false);
 
   const propertyId = property?.id || property?._id;
   const pricePerNight = property?.pricePerNight || 0;
   const maxGuests = property?.maxGuests || 4;
   const isHostOfProperty = Boolean(user && (user.id === property?.owner || user._id === property?.owner));
+
+  
+  // Sync external dates from calendar if changed
+  useEffect(() => {
+    if (externalCheckIn) {
+      setCheckIn(externalCheckIn);
+    }
+    if (externalCheckOut) {
+      setCheckOut(externalCheckOut);
+    }
+  }, [externalCheckIn, externalCheckOut]);
 
   // Compute stay duration in nights
   const nights = useMemo(() => {
@@ -54,6 +72,40 @@ export default function BookingWidget({ property }) {
     const diff = Math.round((outDate - inDate) / (1000 * 60 * 60 * 24));
     return diff > 0 ? diff : 0;
   }, [checkIn, checkOut]);
+
+  
+  // Live availability conflict check against active bookings in MongoDB
+  useEffect(() => {
+    if (!propertyId || !checkIn || !checkOut || nights <= 0) return;
+    let isMounted = true;
+
+    const checkAvail = async () => {
+      setCheckingAvailability(true);
+      try {
+        const res = await api.get(
+          `/properties/${propertyId}/availability?checkIn=${checkIn}&checkOut=${checkOut}`
+        );
+        const data = res?.data || res;
+        if (isMounted) {
+          if (data?.requestedRangeAvailable === false) {
+            setRangeConflict(true);
+          } else {
+            setRangeConflict(false);
+          }
+        }
+      } catch (err) {
+        // Keep previous state
+      } finally {
+        if (isMounted) setCheckingAvailability(false);
+      }
+    };
+
+    const timer = setTimeout(checkAvail, 250);
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [propertyId, checkIn, checkOut, nights]);
 
   // Pricing calculations
   const basePrice = nights * pricePerNight;
@@ -111,17 +163,26 @@ const subtotalPrice = basePrice + cleaningFee + serviceFee;
     const newIn = e.target.value;
     setCheckIn(newIn);
     setError('');
-    // Automatically advance checkOut if it's earlier than or equal to new checkIn
+        let newOut = checkOut;
+
     if (newIn >= checkOut) {
       const nextDay = new Date(newIn);
       nextDay.setDate(nextDay.getDate() + 1);
-      setCheckOut(toDateInputValue(nextDay));
+        newOut = toDateInputValue(nextDay);
+      setCheckOut(newOut);
+    }
+    if (onDatesChange) {
+      onDatesChange(newIn, newOut);
     }
   };
 
-  const handleCheckOutChange = (e) => {
-    setCheckOut(e.target.value);
+    const handleCheckOutChange = (e) => {
+    const newOut = e.target.value;
+    setCheckOut(newOut);
     setError('');
+    if (onDatesChange) {
+      onDatesChange(checkIn, newOut);
+    }
   };
 
   const handleReserve = async (e) => {
@@ -150,6 +211,10 @@ const subtotalPrice = basePrice + cleaningFee + serviceFee;
       return;
     }
 
+      if (rangeConflict) {
+      setError('Selected dates are already booked by another guest. Please choose different dates.');
+      return;
+    }
     setLoading(true);
     setError('');
 
@@ -262,6 +327,14 @@ const subtotalPrice = basePrice + cleaningFee + serviceFee;
           </div>
         </div>
 
+          {/* Live Availability Conflict Banner */}
+        {rangeConflict && (
+          <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-900 flex items-center gap-2 animate-in fade-in">
+            <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>Selected dates are unavailable. Please pick different dates.</span>
+          </div>
+        )}
+
                 {/* Coupon Code Box with Live Validation */}
         <div className="mb-4">
           <div className="flex gap-2">
@@ -331,7 +404,7 @@ const subtotalPrice = basePrice + cleaningFee + serviceFee;
         {/* Reserve CTA Button */}
         <button
           type="submit"
-          disabled={loading || isHostOfProperty}
+          disabled={loading || isHostOfProperty || rangeConflict || checkingAvailability}
           className="w-full py-3.5 px-4 rounded-xl font-bold text-base text-white bg-airbnb hover:bg-airbnb-dark active:scale-[0.99] transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {loading ? (
@@ -339,6 +412,14 @@ const subtotalPrice = basePrice + cleaningFee + serviceFee;
               <Loader2 className="w-5 h-5 animate-spin" />
               <span>Reserving...</span>
             </>
+             ) : checkingAvailability ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Checking availability...</span>
+            </>
+          ) : rangeConflict ? (
+            <span>Dates Unavailable</span>
+    
           ) : isHostOfProperty ? (
             <span>Manage Listing</span>
           ) : (
@@ -351,7 +432,8 @@ const subtotalPrice = basePrice + cleaningFee + serviceFee;
         </p>
 
         {/* Price Breakdown */}
-        {nights > 0 && (
+                {nights > 0 && !rangeConflict && (
+
           <div className="mt-6 pt-6 border-t border-surface-border space-y-3 text-sm text-charcoal">
             <div className="flex justify-between">
               <span className="underline decoration-surface-border hover:decoration-charcoal cursor-pointer">
