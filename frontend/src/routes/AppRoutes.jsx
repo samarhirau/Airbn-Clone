@@ -8,6 +8,7 @@ import HostDashboard from '../pages/host/HostDashboard';
 import HostProperties from '../pages/host/HostProperties';
 import PropertyForm from '../pages/host/PropertyForm';
 import HostBookings from '../pages/host/HostBookings';
+import HostCalendar from '../pages/host/HostCalendar';
 import AdminDashboard from '../pages/admin/AdminDashboard';
 import AdminUsers from '../pages/admin/AdminUsers';
 import AdminProperties from '../pages/admin/AdminProperties';
@@ -37,6 +38,7 @@ export default function AppRoutes() {
           <Route path="profile" element={<Profile />} />
           <Route path="reviews" element={<MyReviews />} />
           <Route path="messages" element={<Messages />} />
+          <Route path="host/calendar" element={<HostCalendar />} />
 
                  {/* Host / Owner Suite */}
           <Route path="host/dashboard" element={<HostDashboard />} />

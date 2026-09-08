@@ -14,6 +14,7 @@ import {
   Users,
   Activity,
   Layers,
+  Calendar,
 } from 'lucide-react';
 import api, { getErrorMessage } from '../../services/api';
 import { formatPrice } from '../../utils/formatCurrency';
@@ -101,6 +102,14 @@ export default function HostDashboard() {
         </div>
 
         <div className="flex items-center gap-3">
+           <Link
+            to="/host/calendar"
+            className="inline-flex items-center gap-2 px-5 py-3 border border-surface-border bg-white hover:bg-neutral-50 text-charcoal rounded-full font-bold text-sm shadow-xs transition-all cursor-pointer"
+          >
+            <Calendar className="w-4 h-4 text-meta" />
+            <span>Manage Calendar</span>
+          </Link>
+
           <Link
             to="/host/properties/new"
             className="inline-flex items-center gap-2 px-5 py-3 bg-airbnb hover:bg-airbnb-dark active:scale-[0.99] text-white rounded-full font-bold text-sm shadow-md transition-all cursor-pointer"

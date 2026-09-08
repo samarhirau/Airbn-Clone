@@ -278,6 +278,14 @@ export default function Navbar({ onOpenSearch, activeFilters = {} }) {
                               <HomeIcon className="w-4 h-4 text-meta" />
                               <span>Manage Listings</span>
                             </Link>
+                               <Link
+                              to="/host/calendar"
+                              onClick={() => setMenuOpen(false)}
+                              className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-surface-card text-charcoal transition-colors"
+                            >
+                              <CalendarDays className="w-4 h-4 text-meta" />
+                              <span>Calendar & Occupancy</span>
+                            </Link>
                             <Link
                               to="/host/bookings"
                               onClick={() => setMenuOpen(false)}
