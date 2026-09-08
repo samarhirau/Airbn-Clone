@@ -5,6 +5,7 @@ import NotFound from '../pages/NotFound';
 import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
 import PropertyDetails from '../pages/PropertyDetails';
+import Bookings from '../pages/customer/Bookings';
 
 export default function AppRoutes() {
   return (
@@ -15,6 +16,7 @@ export default function AppRoutes() {
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
           <Route path="properties/:id" element={<PropertyDetails />} />
+          <Route path="bookings" element={<Bookings />} />
 
           <Route path="*" element={<NotFound />} />
         </Route>
