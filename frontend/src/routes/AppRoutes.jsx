@@ -14,6 +14,7 @@ import AdminProperties from '../pages/admin/AdminProperties';
 import AdminBookings from '../pages/admin/AdminBookings';
 import Wishlists from '../pages/customer/Wishlists';
 import Profile from '../pages/customer/Profile';
+import Coupons from '../pages/host/Coupons';
 
 import NotFound from '../pages/NotFound';
 import Login from '../pages/auth/Login';
@@ -38,12 +39,14 @@ export default function AppRoutes() {
           <Route path="host/properties/new" element={<PropertyForm />} />
           <Route path="host/properties/:id/edit" element={<PropertyForm />} />
           <Route path="host/bookings" element={<HostBookings />} />
+          <Route path="host/coupons" element={<Coupons />} />
 
                   {/* Admin Platform Suite */}
           <Route path="admin/dashboard" element={<AdminDashboard />} />
           <Route path="admin/users" element={<AdminUsers />} />
           <Route path="admin/properties" element={<AdminProperties />} />
           <Route path="admin/bookings" element={<AdminBookings />} />
+          <Route path="admin/coupons" element={<Coupons />} />
 
           <Route path="*" element={<NotFound />} />
         </Route>

@@ -13,7 +13,8 @@ import {
   ShieldAlert, 
   PlusCircle, 
   CalendarDays,
-  Settings
+  Settings,
+  Tag
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import RoleBadge from '../components/common/RoleBadge';
@@ -244,6 +245,14 @@ export default function Navbar({ onOpenSearch, activeFilters = {} }) {
                               <PlusCircle className="w-4 h-4 text-meta" />
                               <span>Create New Listing</span>
                             </Link>
+                             <Link
+                              to="/host/coupons"
+                              onClick={() => setMenuOpen(false)}
+                              className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-surface-card text-charcoal transition-colors"
+                            >
+                              <Tag className="w-4 h-4 text-meta" />
+                              <span>Promotions & Coupons</span>
+                            </Link>
                           </>
                         )}
 
@@ -281,6 +290,14 @@ export default function Navbar({ onOpenSearch, activeFilters = {} }) {
                             >
                               <Briefcase className="w-4 h-4 text-meta" />
                               <span>Global Bookings</span>
+                            </Link>
+                             <Link
+                              to="/admin/coupons"
+                              onClick={() => setMenuOpen(false)}
+                              className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-surface-card text-charcoal transition-colors"
+                            >
+                              <Tag className="w-4 h-4 text-meta" />
+                              <span>Promotional Coupons</span>
                             </Link>
                           </>
                         )}

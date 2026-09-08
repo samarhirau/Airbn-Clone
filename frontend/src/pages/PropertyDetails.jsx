@@ -20,6 +20,8 @@ import PropertyGallery from '../components/property/PropertyGallery';
 import PropertyAmenities from '../components/property/PropertyAmenities';
 import BookingWidget from '../components/property/BookingWidget';
 import PropertyReviews from '../components/property/PropertyReviews';
+import PropertyMap from '../components/property/PropertyMap';
+
 import toast from 'react-hot-toast';
 
 export default function PropertyDetails() {
@@ -365,22 +367,8 @@ export default function PropertyDetails() {
             </button>
           </div>
 
-          {/* Neighborhood & Location */}
-          <div className="py-8">
-            <h3 className="text-xl font-bold text-charcoal mb-2">Where you'll be</h3>
-            <p className="text-sm text-meta mb-4">{locationText}</p>
-            <div className="h-64 sm:h-80 w-full rounded-2xl bg-neutral-100 border border-surface-border overflow-hidden relative flex items-center justify-center">
-              <div className="text-center p-6">
-                <div className="w-12 h-12 rounded-full bg-airbnb/10 text-airbnb flex items-center justify-center mx-auto mb-3 shadow-xs">
-                  <MapPin className="w-6 h-6 stroke-[2.2]" />
-                </div>
-                <h4 className="font-bold text-charcoal text-base">{property.location?.city || 'City Center'}</h4>
-                <p className="text-xs text-meta mt-1 max-w-sm">
-                  Exact location provided after booking for privacy and security.
-                </p>
-              </div>
-            </div>
-          </div>
+           {/* Neighborhood & Location Map */}
+          <PropertyMap property={property} />
         </div>
 
         {/* Right Column: Sticky Booking Widget */}

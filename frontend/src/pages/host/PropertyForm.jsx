@@ -77,6 +77,7 @@ export default function PropertyForm() {
 
   const [newImageUrl, setNewImageUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
   const [fetchingExisting, setFetchingExisting] = useState(isEditing);
   const [error, setError] = useState('');
 
@@ -157,6 +158,42 @@ export default function PropertyForm() {
       images: prev.images.filter((_, i) => i !== indexToRemove),
     }));
   };
+
+   const handleFileUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    setUploadingImages(true);
+    try {
+      const data = new FormData();
+      files.forEach((file) => data.append('images', file));
+
+      const res = await api.post('/upload/images', data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const uploaded = res?.data?.images || res?.images || [];
+      const formatted = uploaded.map((img) => ({
+        url: img.url,
+        publicId: img.publicId,
+      }));
+
+      setFormData((prev) => ({
+        ...prev,
+        images: [...prev.images, ...formatted],
+      }));
+
+      toast.success(`Successfully uploaded ${formatted.length} photo${formatted.length > 1 ? 's' : ''}!`, {
+        className: 'airbnb-toast',
+      });
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setUploadingImages(false);
+      e.target.value = '';
+    }
+  };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -465,6 +502,34 @@ export default function PropertyForm() {
             </h2>
             <span className="text-xs font-semibold text-meta">Minimum 1 required</span>
           </div>
+          {/* File Upload Dropzone */}
+          <div>
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              id="file-upload-input"
+              className="hidden"
+              disabled={uploadingImages}
+              onChange={handleFileUpload}
+            />
+            <label
+              htmlFor="file-upload-input"
+              className="w-full border-2 border-dashed border-surface-border hover:border-airbnb p-6 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer bg-neutral-50/50 hover:bg-rose-50/20 transition-all text-center group"
+            >
+              {uploadingImages ? (
+                <Loader2 className="w-7 h-7 text-airbnb animate-spin" />
+              ) : (
+                <Upload className="w-7 h-7 text-airbnb group-hover:scale-110 transition-transform" />
+              )}
+              <div>
+                <p className="text-xs font-bold text-charcoal">
+                  {uploadingImages ? 'Uploading photos to Cloudinary CDN...' : 'Upload photo files directly from device'}
+                </p>
+                <p className="text-[11px] text-meta mt-0.5">JPG, PNG, or WEBP (up to 5 images)</p>
+              </div>
+            </label>
+          </div>
 
           {/* Add custom image URL */}
           <div className="flex items-center gap-2">
@@ -472,7 +537,7 @@ export default function PropertyForm() {
               type="url"
               value={newImageUrl}
               onChange={(e) => setNewImageUrl(e.target.value)}
-              placeholder="Paste photo image URL (e.g. Unsplash, Cloudinary, etc.)"
+              placeholder="Or paste photo image URL (e.g. Unsplash, Cloudinary, etc.)"
               className="flex-1 p-3 rounded-xl border border-surface-border text-xs sm:text-sm font-medium text-charcoal outline-none focus:border-charcoal"
             />
             <button

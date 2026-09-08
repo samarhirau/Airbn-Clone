@@ -6,7 +6,8 @@ import {
   Briefcase, 
   ShieldCheck, 
   ArrowLeft,
-  Activity
+  Activity,
+  Tag
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -34,6 +35,11 @@ export default function AdminSubNav() {
       label: 'Global Bookings',
       path: '/admin/bookings',
       icon: Briefcase,
+    },
+    {
+      label: 'Promotions',
+      path: '/admin/coupons',
+      icon: Tag,
     },
   ];
 
