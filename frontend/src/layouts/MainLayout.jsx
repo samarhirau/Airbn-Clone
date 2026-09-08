@@ -3,6 +3,7 @@ import { Outlet, useSearchParams } from 'react-router-dom';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import SearchFilterModal from '../components/search/SearchFilterModal';
+import OfflineBanner from '../components/common/OfflineBanner';
 
 export default function MainLayout() {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
@@ -54,6 +55,9 @@ export default function MainLayout() {
 
       {/* 3. Airbnb Footer */}
       <Footer />
+      
+      {/* 4. Real-time Network Resilience Banner */}
+      <OfflineBanner />
     </div>
   );
 }

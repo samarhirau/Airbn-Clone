@@ -14,10 +14,12 @@ import {
   PlusCircle, 
   CalendarDays,
   Settings,
-  Tag
+  Tag,
+  Activity
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import RoleBadge from '../components/common/RoleBadge';
+import NotificationDrawer from '../components/notifications/NotificationDrawer';
 
 export default function Navbar({ onOpenSearch, activeFilters = {} }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -128,6 +130,9 @@ export default function Navbar({ onOpenSearch, activeFilters = {} }) {
             >
               <Globe className="w-4 h-4" />
             </button>
+
+            {/* Notification Center */}
+            <NotificationDrawer />
 
             {/* Profile Dropdown Trigger Pill */}
             <div className="relative" ref={menuRef}>
@@ -298,6 +303,14 @@ export default function Navbar({ onOpenSearch, activeFilters = {} }) {
                             >
                               <Tag className="w-4 h-4 text-meta" />
                               <span>Promotional Coupons</span>
+                            </Link>
+                             <Link
+                              to="/admin/system"
+                              onClick={() => setMenuOpen(false)}
+                              className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-surface-card text-charcoal transition-colors"
+                            >
+                              <Activity className="w-4 h-4 text-meta" />
+                              <span>System Health</span>
                             </Link>
                           </>
                         )}

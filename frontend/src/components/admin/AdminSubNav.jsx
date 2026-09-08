@@ -41,6 +41,11 @@ export default function AdminSubNav() {
       path: '/admin/coupons',
       icon: Tag,
     },
+    {
+      label: 'System Health',
+      path: '/admin/system',
+      icon: Activity,
+    },
   ];
 
   return (

@@ -15,6 +15,7 @@ import AdminBookings from '../pages/admin/AdminBookings';
 import Wishlists from '../pages/customer/Wishlists';
 import Profile from '../pages/customer/Profile';
 import Coupons from '../pages/host/Coupons';
+import AdminSystemHealth from '../pages/admin/AdminSystemHealth';
 
 import NotFound from '../pages/NotFound';
 import Login from '../pages/auth/Login';
@@ -47,6 +48,7 @@ export default function AppRoutes() {
           <Route path="admin/properties" element={<AdminProperties />} />
           <Route path="admin/bookings" element={<AdminBookings />} />
           <Route path="admin/coupons" element={<Coupons />} />
+          <Route path="admin/system" element={<AdminSystemHealth />} />
 
           <Route path="*" element={<NotFound />} />
         </Route>
