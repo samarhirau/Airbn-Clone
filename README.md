@@ -102,6 +102,10 @@ CLIENT_URL=http://localhost:5173
 REDIS_URL=redis://default:<password>@<host>:6379
 REDIS_ENABLED=true
 
+# Google OAuth 
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
 # JWT Secrets (generate 32+ character random strings)
 JWT_ACCESS_SECRET=your_super_secret_access_jwt_key_32chars
 JWT_REFRESH_SECRET=your_super_secret_refresh_jwt_key_32chars
